@@ -1,0 +1,48 @@
+{
+  "name": "task",
+  "version": "0.1.0",
+  "author": "Mélanie Garnier",
+  "description": "A class to define tasks",
+  "dependencies": {
+    "JSON": "^1.0.0",
+    "deep-equal": "^1.0.1",
+    "jsonfile": "^2.2.3",
+    "my-local-ip": "^1.0.0",
+    "node-uuid": "^1.4.7",
+    "nslurm": "^0.8.0"
+  },
+  "managerSettings": {
+    "cacheDir": "/home/mgarnier/taskObject_devTests/tmp/",
+    "forceCache": "/home/mgarnier/taskObject_devTests/tmp/forceCache/",
+    "probPreviousCacheDir": [
+      "/home/mgarnier/tmp/",
+      "/home/mgarnier/taskObject_devTests/tmp/",
+      "/Users/mgarnier/Documents/Developpement/taskObject_moduleDevelopment/tmp/"
+    ],
+    "tcp": "193.55.43.69",
+    "port": "2320",
+    "slurmBinaries": "/opt/slurm/bin/",
+    "jobProfiles": {
+      "arwen_gpu": {
+        "partition": "gpu_dp",
+        "qos": "gpu"
+      },
+      "arwen_cpu": {
+        "partition": "mpi-mobi",
+        "qos": "mpi-mobi"
+      },
+      "arwen-dev_gpu": {
+        "partition": "gpu",
+        "qos": "gpu",
+        "gid": "ws_users",
+        "uid": "ws_ardock"
+      },
+      "arwen-dev_cpu": {
+        "partition": "ws_dev",
+        "qos": "ws_dev",
+        "gid": "ws_users",
+        "uid": "ws_ardock"
+      }
+    }
+  }
+}

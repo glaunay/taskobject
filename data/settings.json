@@ -1,0 +1,7 @@
+{
+	"coreScript": "./data/simple.sh",
+	"jobsArray" : [],
+	"wait" : true,
+	"automaticClosure": false,
+	"settings": {}
+}

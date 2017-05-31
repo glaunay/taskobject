@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "noImplicitAny": false,
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "removeComments": false,
+        "preserveConstEnums": true,
+        "sourceMap": false,
+        "typeRoots" : ["./typings" ],
+        "types": [],
+        "outDir": "./"
+    },
+    "files": [
+        "./ts/src/index.ts",
+        "./ts/src/test/test.ts"
+    ]
+}
