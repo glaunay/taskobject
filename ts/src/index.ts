@@ -16,12 +16,22 @@
 var tk = require('taskObject');
 var taskTest = new tk.Task (jobManager, jobProfile);
 readableStream.pipe(taskTest).pipe(writableStream);
+
+
+* Inheritance :
+A child class of Task must not override methods like : __method__ ()
+
+
+
+
+
+
 */
 
 
 // TODO
 // - git ignore node_modules
-// - kill method
+// - kill method (not necessary thanks to the new jobManager with its "engines")
 // - implement the writing of more than one input : this.write_inputs()
 
 
@@ -37,7 +47,7 @@ import path = require ('path');
 import deepEqual = require('deep-equal');
 
 
-const staticTag: string = 'simple'; // must be unique
+const staticTag: string = 'simple2'; // must be unique
 
 
 export class Task extends stream.Duplex {
@@ -58,6 +68,7 @@ export class Task extends stream.Duplex {
 	private nextInput: boolean; // false when the input is not complete
 
 	/*
+	* MUST BE ADAPTED FOR CHILD CLASSES
 	* Initialize the task parameters.
 	*/
 	constructor (jobManager, jobProfile: {}, taskNum?: number, options?: any) {
@@ -74,28 +85,29 @@ export class Task extends stream.Duplex {
 		this.goReading = false;
 		this.nextInput = false;
 		this.settFile = __dirname + '/data/settings.json';
-		this._firstSet(this._parseJson(this.settFile));
+		this.firstSet(this.__parseJson__(this.settFile));
 	}
 
 	/*
-	* Open a json file and return its content if no error
+	* DO NOT MODIFY
+	* Open a json file and return its content if no error otherwise return null
 	*/
-	_parseJson (file: string): {} {
+	__parseJson__ (file: string): {} {
 		try {
 			var dict: {} = jsonfile.readFileSync(file, 'utf8');
 			return dict;
-		}
-		catch (err) {
-			console.log('WARNING : ' + err);
+		} catch (err) {
+			console.log('ERROR in _parseJson() : ' + err);
 			return null;
 		}
 	}
 
 	/*
+	* MUST BE ADAPTED FOR CHILD CLASSES
 	* First set of the task : called by the constructor.
 	* data is a literal like { 'author' : 'me', 'settings' : { 't' : 5, 'iterations' : 10 } }
 	*/
-	_firstSet (data: any): void {
+	firstSet (data: any): void {
 		if (data) {
 			if ('coreScript' in data) this.coreScript = __dirname + '/' + data.coreScript;
 			else this.coreScript = null;
@@ -111,12 +123,12 @@ export class Task extends stream.Duplex {
 	}
 
 	/*
+	* MUST BE ADAPTED FOR CHILD CLASSES
 	* Change task parameters according to the keys in data (JSON format) :
 	* data is a literal like { 'author' : 'me', 'settings' : { 't' : 5, 'iterations' : 10 } }
 	*/
 	set (data: any): void {
 		if (data) {
-			if ('cacheDir' in data) this.cacheDir = data.cacheDir;
 			if ('coreScript' in data) this.coreScript = __dirname + '/' + data.coreScript;
 			if ('jobsArray' in data) this.jobsArray = data.jobsArray;
 			if ('wait' in data) this.wait = data.wait;
@@ -131,30 +143,44 @@ export class Task extends stream.Duplex {
 	}
 
 	/*
-	* Create the directory according to @dirPath
+	* Create a directory according to @dirPath
 	*/
-	createDir (dirPath: string): void {
+	__createDir__ (dirPath: string): void {
 		try { fs.mkdirSync(dirPath); }
-		catch (err) { console.log('WARNING : ' + err); }
+		catch (err) { console.log('ERROR in createDir() : ' + err); }
+	}
+
+	/*
+	* Read a file according to @dirPath and return its @content or null if error
+	*/
+	__readFile__ (dirPath: string): string {
+		try {
+			var content = fs.readFileSync(dirPath, 'utf8');
+			return content;
+		} catch (err) {
+			console.log('ERROR in readFile() : ' + err);
+			return null;
+		}
 	}
 
 	/*
 	* Write the @data in the a file according to the @filePath
 	*/
-	writeFile (filePath: string, data: string): void {
+	__writeFile__ (filePath: string, data: string): void {
 		try { fs.writeFileSync(filePath, data); }
-		catch (err) { throw err; }
+		catch (err) { console.log('ERROR in writeFile() : ' + err); }
 	}
 
 	/*
 	* Write @dict in the @filePath with a JSON format
 	*/
-	writeJson (filePath: string, dict: {}): void {
+	__writeJson__ (filePath: string, dict: {}): void {
 		try { jsonfile.writeFileSync(filePath, dict); }
-		catch (err) { throw err; }
+		catch (err) { console.log('ERROR in writeJson() : ' + err); }
 	}	
 
 	/*
+	* MUST BE ADAPTED FOR CHILD CLASSES
 	* According to the parameter this.automaticClosure,
 	* close definitely this task or just push the string "null"
 	*/
@@ -165,8 +191,9 @@ export class Task extends stream.Duplex {
 
 
 	/*
+	* MUST BE ADAPTED FOR CHILD CLASSES
 	* Bad method but necessary... to compare two JSON objects
-	* In both JSON object, remove the variables that are using the uuid.
+	* In both JSON object, remove the variables that are using the uuid or unique variables.
 	* These variables are unique so JSONs cannot be compared if we don't remove them.
 	*/
 	deepSettingsEqual (json1: any, json2: any): boolean {
@@ -184,66 +211,56 @@ export class Task extends stream.Duplex {
 
 
 	/*
+	* MUST BE ADAPTED FOR CHILD CLASSES
 	* Check for differences between the settings of this & the settings of current
 	* WARNING : settings of this must be in a JSON format contrary to the settings of 
 	* current that must be a FILE (in JSON format)
 	*/
 	settingsEqual (settings_this: {}, settFile_current: string): boolean {
 		try {
-			var settings_current: {} = this._parseJson(settFile_current);
+			var settings_current: {} = this.__parseJson__(settFile_current);
 			// console.log('okokokok >>>' + settings_this + '<<< //// >>>' + settings_current + '<<<');
 			if (this.deepSettingsEqual(settings_this, settings_current)) return true;
 			else return false;
 		}
 		catch (err) {
-			console.log('WARNING : ' + err);
+			console.log('ERROR in settingsEqual() : ' + err);
 			return false;
 		}
 	}
 
 	/*
+	* MUST BE ADAPTED FOR CHILD CLASSES
 	* Check for differences between the input of this & the input of current
 	*/
 	inputEqual (inputFile_this: string, inputFile_current: string): boolean {
-		try { var data_this: string = fs.readFileSync(inputFile_this, 'utf8'); }
-		catch (err) {
-			console.log ('WARNING : ' + err);
-			return false;
-		}
-		try { var data_current: string = fs.readFileSync(inputFile_current, 'utf8'); }
-		catch (e) {
-			console.log('WARNING : ' + e);
-			return false;
-		}
+		var data_this: string = this.__readFile__(inputFile_this);
+		var data_current: string = this.__readFile__(inputFile_current);
+		if (data_this === null || data_current === null) return false;
 		//console.log('okokokok >>>' + data_this + '<<< //// >>>' + data_current + '<<<');
 		if (data_this === data_current) return true;
 		else return false;
 	}
 
 	/*
+	* MUST BE ADAPTED FOR CHILD CLASSES
 	* Check for differences between the core script of this & the core script of current
 	*/
 	coreScriptEqual (coreScript_this: string, coreScript_current: string): boolean {
-		try { var data_this: string = fs.readFileSync(coreScript_this, 'utf8'); }
-		catch (err) {
-			console.log('WARNING : ' + err);
-			return false;
-		}
-		try { var data_current: string = fs.readFileSync(coreScript_current, 'utf8'); }
-		catch (e) {
-			console.log('WARNING : ' + e);
-			return false;
-		}
+		var data_this: string = this.__readFile__(coreScript_this);
+		var data_current: string = this.__readFile__(coreScript_current);
+		if (data_this === null || data_current === null) return false;
 		//console.log('okokokok >>>' + data + '<<< //// >>>' + d + '<<<');
 		if (data_this === data_current) return true;
 		else return false;
 	}
 
 	/*
+	* DO NOT MODIFY
 	* Search for ONE UNIQUE file ("target") among a list of files (filesDir_array)
 	* from a "directory". Possible thanks the "regexTarget".
 	*/
-	searchForOneFile (directory: string, filesDir_array: string[], regexTarget: string): string {
+	__searchForOneFile__ (directory: string, filesDir_array: string[], regexTarget: string): string {
 		if (! directory) {
 			console.log('WARNING in searchForOneFile() : no directory specified');
 			return null;
@@ -275,6 +292,7 @@ export class Task extends stream.Duplex {
 	}
 
 	/*
+	* MUST BE ADAPTED FOR CHILD CLASSES
 	* Check if this task has already been done,
 	* by checking for differences between our actual task ("this") & the finished task (called "current")
 	* (using this.settingsEqual(), this.inputEqual() and this.coreScriptEqual() methods).
@@ -286,7 +304,7 @@ export class Task extends stream.Duplex {
 	* 	(5) check the existence of both parameter files (.json && _coreScript.sh) and input file
 	* 	(6) compare all current task files with this task files
 	*/
-	_alreadyDone (jobOpt: any, data: string): string {
+	alreadyDone (jobOpt: any, data: string): string {
 		var tab_taskDir = this.jobManager.findTaskDir(staticTag) // (1)
 		if (tab_taskDir.length === 0) return null;
 		//console.log(tab_taskDir);
@@ -319,19 +337,19 @@ export class Task extends stream.Duplex {
 			}
 
 			// check the existence of the .out and .err files before anything else (4)
-			current_outFile = this.searchForOneFile(current_taskDir, files_taskDir, re_outFile);
-			current_errFile = this.searchForOneFile(current_taskDir, files_taskDir, re_errFile);
+			current_outFile = this.__searchForOneFile__(current_taskDir, files_taskDir, re_outFile);
+			current_errFile = this.__searchForOneFile__(current_taskDir, files_taskDir, re_errFile);
 			if (!current_outFile || !current_errFile) {
 				if (i === tab_taskDir.length-1) return null;
 			}
-			else if (this._parseJson(current_outFile) === null) { // if the out file is not a JSON file
+			else if (this.__parseJson__(current_outFile) === null) { // if the out file is not a JSON file
 				if (i === tab_taskDir.length-1) return null;
 			}
 			
 			// search for the json, _coreScript.sh and input files (5)
-			current_jsonFile = this.searchForOneFile(current_inputDir, files_inputDir, re_json);
-			current_coreScriptFile = this.searchForOneFile(current_taskDir, files_taskDir, re_coreScript);
-			current_inputFile = this.searchForOneFile(current_inputDir, files_inputDir, re_input);
+			current_jsonFile = this.__searchForOneFile__(current_inputDir, files_inputDir, re_json);
+			current_coreScriptFile = this.__searchForOneFile__(current_taskDir, files_taskDir, re_coreScript);
+			current_inputFile = this.__searchForOneFile__(current_inputDir, files_inputDir, re_input);
 
 			if (current_jsonFile && current_coreScriptFile && current_inputFile) { // (6)
 				if (this.settingsEqual(jobOpt.specific, current_jsonFile)) {
@@ -352,27 +370,14 @@ export class Task extends stream.Duplex {
 		}
 	}
 
-
 	/*
-	* With a key, find the path to the folder containing the results & call restoreByPath()
-	* WARNING : not implemented
-	*/
-	// restoreByKey (key: string): any {
-	// 	if (!key) throw 'ERROR : no key specified';
-	// 	var path: string;
-	// 	return this.restoreByPath(path);
-	// }
-
-	/*
+	* MUST BE ADAPTED FOR CHILD CLASSES
 	* With a path, restore a session
 	*/
 	restoreByPath (pathDir: string): string {
 		if (!pathDir) throw 'ERROR : no path specified';
 		var basename: string = path.basename(pathDir);
-		try { var results: string = fs.readFileSync(pathDir + '/' + basename + '.out', 'utf8'); }
-		catch (err) {
-			throw err;
-		}
+		var results: string = this.__readFile__(pathDir + '/' + basename + '.out');
 		//console.log(pathDir + '/' + basename + '.out');
         return results;
 	}
@@ -390,7 +395,7 @@ export class Task extends stream.Duplex {
 	* 	- a "generic" part = include parameters that will not change the results of the task
 	* 	- a "specific" part = for parameters needed to define precisely the task
 	*/
-	configJob (modules: string[], exportVar: {}, mode: string): Object {
+	__configJob__ (modules: string[], exportVar: {}, mode: string): Object {
 	    var jobOpt = {
 	    	'generic' : {
 	    		'id' : <string> staticTag + 'Task_' + uuid.v4(),
@@ -401,6 +406,8 @@ export class Task extends stream.Duplex {
 	        	'script' : <string> this.coreScript,
 	        	'modules' : <[string]> [], // (1)
 	        	'exportVar' : <{}> exportVar // (2)
+	        	// inputs : {} // stream or string (path) or string (input)
+	        	// tagTask : string
 	        }
 	    };
 	    if (modules.length > 0) jobOpt.specific.modules.concat(modules);
@@ -424,29 +431,44 @@ export class Task extends stream.Duplex {
 
 
 	/*
+	* MUST BE ADAPTED FOR CHILD CLASSES
+	* to manage the input(s)
 	* Use the values in @jsonValue [literal] to configure modules and exportVar for configJob.
 	* And prepare the directories and files for the task : JSON (settings) & input(s).
 	*/
 	prepareTask (jsonValue: any): Object {
 		var modules: string[] = []
 		var exportVar: {} = {};
-		var jobOpt: any = this.configJob(modules, exportVar, 'cpu');
+		var jobOpt: any = this.__configJob__(modules, exportVar, 'cpu');
+		// input name(s)
+		var name: string = 'input';
 
 		var inputDir = this.cacheDir + '/' + jobOpt.generic.id + '_inputs/';
-		this.createDir(inputDir); // create the input directory
-		this.writeJson(inputDir + '/' + jobOpt.generic.id + '_jobOpt.json', jobOpt.specific); // write the JSON file (settings)
+		this.__createDir__(inputDir); // create the input directory
+		this.__writeJson__(inputDir + '/' + jobOpt.generic.id + '_jobOpt.json', jobOpt.specific); // write the JSON file (settings)
 		// write the input file(s) :
-		this.writeFile(jobOpt.specific.exportVar.inputFile, jsonValue.input);
+		this.__writeFile__(jobOpt.specific.exportVar.inputFile, jsonValue[name]);
 
 		return jobOpt;
 	}
 
+	/*
+	* MUST BE ADAPTED FOR CHILD CLASSES
+	* To manage the output(s)
+	*/
+	prepareResults (chunk: any): string {
+		if (typeof chunk !== 'string') chunk = JSON.stringify(chunk);
+		var results: {} = {
+			'input' : chunk
+		};
+    	return JSON.stringify(results);
+	}
 
 	/*
 	* DO NOT MODIFY
 	* Execute all the calculations
 	*/
-	run (jobOpt: {}): events.EventEmitter {
+	__run__ (jobOpt: {}): events.EventEmitter {
 		var emitter = new events.EventEmitter();
 
 		var j = this.jobManager.push(jobOpt);
@@ -457,11 +479,13 @@ export class Task extends stream.Duplex {
                     console.log(buf.toString());
                 });
             }
-            var results: any = {'input' : ''};
-            stdout.on('data', buf => { results.input += buf.toString(); });
+            var chunk: string = '';
+            stdout.on('data', buf => { chunk += buf.toString(); });
             stdout.on('end', () => {
-            	if (typeof results !== 'string') results = JSON.stringify(results);
-            	emitter.emit('jobCompletion', results, jobObject);
+            	this.__async__(this.prepareResults(chunk)).on('end', results => {
+            		emitter.emit('jobCompletion', results, jobObject);
+            	});
+
             });
 		})
 		.on('error', (e, j) => {
@@ -480,7 +504,7 @@ export class Task extends stream.Duplex {
 	* Returns in @results [literal] a list of JSON objects [@results.jsonTab] and toParse without all JSON substrings [@results.rest].
 	* for tests = zede}trgt{"toto" : { "yoyo" : 3}, "input" : "tototo\ntititi\ntatata"} rfr{}ojfr
 	*/
-	stringToJson (toParse: string): any {
+	__stringToJson__ (toParse: string): any {
 		var open: string = '{', close: string = '}';
 		var jsonStart: number = -1, jsonEnd: number = -1;
 		var counter: number = 0;
@@ -494,7 +518,7 @@ export class Task extends stream.Duplex {
 		* Check the existence of a JSON in a string.
 		* Method : search the indice of the first { in the string. Then search a } from the indice to the end of the string.
 		*/
-		var jsonAvailable = function (toParse: string): boolean {
+		var __jsonAvailable__ = function (toParse: string): boolean {
 			var open: string = '{', close: string = '}';
 			// search the first '{'
 			var first_open: number = toParse.search(open);
@@ -505,7 +529,7 @@ export class Task extends stream.Duplex {
 			else return true;
 		}
 
-		while (jsonAvailable(toParse)) { // while we find a {
+		while (__jsonAvailable__(toParse)) { // while we find a {
 			for (var i = 0; i < toParse.length; i++) {
 				//console.log(i, toParse[i]);
 				if (toParse[i].match(open)) {
@@ -543,17 +567,17 @@ export class Task extends stream.Duplex {
 	* 			(5) if yes -> restore
 	* 			(6) if no -> run
 	*/
-	processing (chunk: string): events.EventEmitter {
+	__processing__ (chunk: string): events.EventEmitter {
 		if (! chunk) throw 'ERROR : Chunk is ' + chunk; // if null or undefined
 		var emitter = new events.EventEmitter();
 		this.streamContent += chunk; // (1)
-
-		var resJsonParser = this.stringToJson(this.streamContent); // (1)
+		console.log('streamContent :');
+		console.log(this.streamContent);
+		var resJsonParser = this.__stringToJson__(this.streamContent); // (1)
 		this.streamContent = resJsonParser.rest;
 		var jsonTab = resJsonParser.jsonTab;
 		console.log('jsonTab :');
 		console.dir(jsonTab);
-		console.log(this.streamContent);
 
 		jsonTab.forEach((jsonValue, i, array) => { // (2)
 			//console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
@@ -563,27 +587,24 @@ export class Task extends stream.Duplex {
 				var taskOpt: any = this.prepareTask(jsonValue); // (3)
 				//console.log(taskOpt);
 				
-				var pathRestore: string = this._alreadyDone(taskOpt, jsonValue.input); // (4)
+				var pathRestore: string = this.alreadyDone(taskOpt, jsonValue.input); // (4)
 				if (pathRestore !== null) { // (5)
 					console.log('Restoration process started with the path : ' + pathRestore);
-					this.async(this.restoreByPath(pathRestore)).on('end', results => {
+					this.__async__(this.restoreByPath(pathRestore)).on('end', results => {
 						this.goReading = true;
 						this.push(results);
 						emitter.emit('restored', results);
-					})
+					});
 				} else { // (6)
 					console.log('No equal task found in previous cache directories : go running !');
-					this.run(taskOpt)
+					this.__run__(taskOpt)
 					.on('jobCompletion', (results, jobObject) => {
 						this.goReading = true;
-						this.push(results);
+						this.push(results); // pushing string = activate the "_read" method
 						emitter.emit('processed', results);
 					})
 					.on('error', err => {
 						emitter.emit('err');
-					})
-					.on('endOfStream', s => {
-						emitter.emit('endOfStream');
 					});
 				}
 			}
@@ -600,15 +621,12 @@ export class Task extends stream.Duplex {
 		if (Buffer.isBuffer(chunk)) chunk = chunk.toString();
 
 		//console.log('>>>>> write');
-		this.processing(chunk)
+		this.__processing__(chunk)
 		.on('processed', s => {
 			this.emit('processed', s);
 		})
 		.on('err', s => {
 			this.emit('err', s);
-		})
-		.on('endOfStream', s => {
-			this.emit('endOfStream', s);
 		})
 		.on('restored', s => {
 			this.emit('restored', s);
@@ -632,7 +650,13 @@ export class Task extends stream.Duplex {
 
 	/*
 	* Try to kill the job(s) of this task
-	* WARNING : not implemented
+	* WARNING : not implemented : 
+	jobManager.stop exposes 4 events:
+        'cleanExit' : all jobs were succesfully killed
+        'leftExit'  : some jobs could not be killed
+        'emptyExit' : no jobs  to kill
+        'cancelError' : an error occur while killing
+        'listError': an error occur  while listing processes corresponding to pending jobs
 	*/
 	kill (managerSettings): events.EventEmitter {
 		var emitter = new events.EventEmitter();
@@ -657,9 +681,10 @@ export class Task extends stream.Duplex {
 
 
 	/*
+	* DO NOT MODIFY
 	* Make a @callback asynchronous
 	*/
-	async (callback: any): events.EventEmitter {
+	__async__ (callback: any): events.EventEmitter {
 		var emitter = new events.EventEmitter;
 		setTimeout(() => { emitter.emit('end', callback); }, 10);
 		return emitter;
