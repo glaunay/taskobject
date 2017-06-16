@@ -58,7 +58,7 @@ console.log(managerSettings);
 nslurm.start(managerSettings);
 var jobProfile = nslurm.selectJobProfile("arwen_cpu");
 var a = new tk.Task(nslurm, jobProfile);
-var b = new tk.Task(nslurm, jobProfile); // for reading tests
+//var b = new tk.Task (nslurm, jobProfile); // for reading tests
 // pipeline
 process.stdin.pipe(a)
     .on('processed', function (s) {
@@ -67,45 +67,16 @@ process.stdin.pipe(a)
     .on('err', function (s) {
     console.log('**** ERROR');
 })
-    .on('endOfStream', function (s) {
-    console.log('**** endOfStream');
-})
     .on('restored', function (s) {
     console.log('**** restored :-)');
 })
-    .pipe(b)
-    .on('processed', function (s) {
-    console.log('**** data 22222');
-})
-    .on('err', function (s) {
-    console.log('**** ERROR 22222');
-})
-    .on('endOfStream', function (s) {
-    console.log('**** endOfStream 22222');
-})
-    .on('restored', function (s) {
-    console.log('**** restored :-) 22222');
-})
     .pipe(process.stdout);
-var test = "{\"input\" : \"hello";
-var test2 = " world\"}";
-a.goReading = true;
-a.push(test);
-setTimeout(function () {
-    a.goReading = true;
-    a.push(test2);
-    a.on('processed', function (s) {
-        console.log('**** data 333');
-    })
-        .on('err', function (s) {
-        console.log('**** ERROR 333');
-    })
-        .on('endOfStream', function (s) {
-        console.log('**** endOfStream 333');
-    })
-        .on('restored', function (s) {
-        console.log('**** restored :-) 333');
-    })
-        .pipe(process.stdout);
-}, 15000);
 // {"input" : "toto"}
+// var test = "{\"input\" : \"hello";
+// var test2 = " world\"}";
+// a.goReading = true;
+// a.push(test)
+// setTimeout(() => {
+//     a.goReading = true;
+//     a.push(test2)
+// }, 15000);
