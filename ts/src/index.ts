@@ -1,5 +1,3 @@
-/// <reference path="../typings/index.d.ts" />
-
 /*
 * CLASS TASK
 * settFile must be like :

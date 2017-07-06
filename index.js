@@ -1,5 +1,3 @@
-/// <reference path="../typings/index.d.ts" />
-"use strict";
 /*
 * CLASS TASK
 * settFile must be like :
@@ -27,6 +25,7 @@ A child class of Task must not override methods like : __method__ ()
 
 
 */
+"use strict";
 // TODO
 // - git ignore node_modules
 // - kill method (not necessary thanks to the new jobManager with its "engines")
