@@ -6,7 +6,7 @@ import nslurm = require ('nslurm');
 import path = require ('path');
 import localIP = require ('my-local-ip');
 
-var localIP = localIP();
+var local_IP = localIP();
 var cache, forceCache;
 
 
@@ -29,7 +29,7 @@ if (! cache) cache = '';
 var managerSettings = {
     "cacheDir": cache,
     "probPreviousCacheDir": [],
-    "tcp": localIP,
+    "tcp": local_IP,
     "port": "2220",
     "slurmBinaries": "/opt/slurm/bin/",
     "jobProfiles": {

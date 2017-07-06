@@ -1,7 +1,7 @@
 {
-	"coreScript": "./data/simple.sh",
+	"coreScript" : "./data/simple.sh",
 	"jobsArray" : [],
 	"wait" : true,
-	"automaticClosure": false,
-	"settings": {}
+	"automaticClosure" : false,
+	"settings" : {}
 }

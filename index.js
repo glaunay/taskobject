@@ -1,10 +1,5 @@
 /// <reference path="../typings/index.d.ts" />
 "use strict";
-var __extends = (this && this.__extends) || function (d, b) {
-    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-    function __() { this.constructor = d; }
-    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-};
 /*
 * CLASS TASK
 * settFile must be like :
@@ -36,64 +31,59 @@ A child class of Task must not override methods like : __method__ ()
 // - git ignore node_modules
 // - kill method (not necessary thanks to the new jobManager with its "engines")
 // - implement the writing of more than one input : this.write_inputs()
-var events = require("events");
-var stream = require("stream");
-var jsonfile = require("jsonfile");
-var JSON = require("JSON");
-var fs = require("fs");
+const events = require("events");
+const stream = require("stream");
+const jsonfile = require("jsonfile");
+const JSON = require("JSON");
+const fs = require("fs");
 //import {spawn} from 'child_process';
-var uuid = require("node-uuid");
-var path = require("path");
-var deepEqual = require("deep-equal");
-var staticTag = 'simple2'; // must be unique
-var Task = (function (_super) {
-    __extends(Task, _super);
+const uuidv4 = require("uuid/v4");
+const path = require("path");
+const deepEqual = require("deep-equal");
+class Task extends stream.Duplex {
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
     * Initialize the task parameters.
     */
-    function Task(jobManager, jobProfile, taskNum, options) {
-        var _this = this;
+    constructor(jobManager, jobProfile, taskNum, options) {
+        super(options);
         if (!jobManager)
             throw 'ERROR : a job manager must be specified';
-        if (!staticTag)
-            throw 'ERROR : no tagTask specified in this module';
-        _this = _super.call(this, options) || this;
-        _this.jobManager = jobManager;
-        _this.cacheDir = _this.jobManager.cacheDir();
-        _this.jobProfile = jobProfile;
+        this.jobManager = jobManager;
+        this.staticTag = 'simple';
+        this.cacheDir = this.jobManager.cacheDir();
+        this.jobProfile = jobProfile;
+        this.streamContent = '';
+        this.results = null;
+        this.goReading = false;
+        this.nextInput = false;
+        this.settFile = __dirname + '/data/settings.json';
+        this.firstSet(this.__parseJson__(this.settFile));
         if (taskNum)
-            _this.dynamicTag = staticTag + taskNum;
+            this.dynamicTag = this.staticTag + taskNum;
         else
-            _this.dynamicTag = staticTag;
-        _this.streamContent = '';
-        _this.results = null;
-        _this.goReading = false;
-        _this.nextInput = false;
-        _this.settFile = __dirname + '/data/settings.json';
-        _this.firstSet(_this.__parseJson__(_this.settFile));
-        return _this;
+            this.dynamicTag = this.staticTag;
     }
     /*
     * DO NOT MODIFY
     * Open a json file and return its content if no error otherwise return null
     */
-    Task.prototype.__parseJson__ = function (file) {
+    __parseJson__(file) {
         try {
             var dict = jsonfile.readFileSync(file, 'utf8');
             return dict;
         }
         catch (err) {
-            console.log('ERROR in _parseJson() : ' + err);
+            console.log('ERROR in __parseJson__() : ' + err);
             return null;
         }
-    };
+    }
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
     * First set of the task : called by the constructor.
     * data is a literal like { 'author' : 'me', 'settings' : { 't' : 5, 'iterations' : 10 } }
     */
-    Task.prototype.firstSet = function (data) {
+    firstSet(data) {
         if (data) {
             if ('coreScript' in data)
                 this.coreScript = __dirname + '/' + data.coreScript;
@@ -116,13 +106,13 @@ var Task = (function (_super) {
             else
                 this.settings = {};
         }
-    };
+    }
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
     * Change task parameters according to the keys in data (JSON format) :
     * data is a literal like { 'author' : 'me', 'settings' : { 't' : 5, 'iterations' : 10 } }
     */
-    Task.prototype.set = function (data) {
+    set(data) {
         if (data) {
             if ('coreScript' in data)
                 this.coreScript = __dirname + '/' + data.coreScript;
@@ -141,71 +131,71 @@ var Task = (function (_super) {
                 }
             }
         }
-    };
+    }
     /*
     * Create a directory according to @dirPath
     */
-    Task.prototype.__createDir__ = function (dirPath) {
+    __createDir__(dirPath) {
         try {
             fs.mkdirSync(dirPath);
         }
         catch (err) {
-            console.log('ERROR in createDir() : ' + err);
+            console.log('ERROR in __createDir__() : ' + err);
         }
-    };
+    }
     /*
     * Read a file according to @dirPath and return its @content or null if error
     */
-    Task.prototype.__readFile__ = function (dirPath) {
+    __readFile__(dirPath) {
         try {
             var content = fs.readFileSync(dirPath, 'utf8');
             return content;
         }
         catch (err) {
-            console.log('ERROR in readFile() : ' + err);
+            console.log('ERROR in __readFile__() : ' + err);
             return null;
         }
-    };
+    }
     /*
     * Write the @data in the a file according to the @filePath
     */
-    Task.prototype.__writeFile__ = function (filePath, data) {
+    __writeFile__(filePath, data) {
         try {
-            fs.writeFileSync(filePath, data);
+            fs.writeFileSync(filePath, data, "utf8");
         }
         catch (err) {
-            console.log('ERROR in writeFile() : ' + err);
+            console.log('ERROR in __writeFile__() : ' + err);
         }
-    };
+    }
     /*
     * Write @dict in the @filePath with a JSON format
     */
-    Task.prototype.__writeJson__ = function (filePath, dict) {
+    __writeJson__(filePath, dict) {
         try {
-            jsonfile.writeFileSync(filePath, dict);
+            jsonfile.writeFileSync(filePath, dict, "utf8");
         }
         catch (err) {
-            console.log('ERROR in writeJson() : ' + err);
+            console.log('ERROR in __writeJson__() : ' + err);
         }
-    };
+    }
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
     * According to the parameter this.automaticClosure,
     * close definitely this task or just push the string "null"
     */
-    Task.prototype.pushClosing = function () {
+    pushClosing() {
         if (this.automaticClosure)
             this.push(null);
         else
             this.push('null');
-    };
+    }
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
     * Bad method but necessary... to compare two JSON objects
     * In both JSON object, remove the variables that are using the uuid or unique variables.
     * These variables are unique so JSONs cannot be compared if we don't remove them.
     */
-    Task.prototype.deepSettingsEqual = function (json1, json2) {
+    deepSettingsEqual(json1, json2) {
         /* for this task, only json.exportVar.inputFile is unique */
         //console.log(json1, json2);
         if (json1.exportVar.inputFile && json2.exportVar.inputFile) {
@@ -213,21 +203,21 @@ var Task = (function (_super) {
             var json2_clone = JSON.parse(JSON.stringify(json2));
             delete json1_clone.exportVar.inputFile;
             delete json2_clone.exportVar.inputFile;
-            if (deepEqual(json1_clone, json2_clone))
+            if (deepEqual(json1_clone, json2_clone, false))
                 return true;
             else
                 return false;
         }
         else
             return false;
-    };
+    }
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
     * Check for differences between the settings of this & the settings of current
     * WARNING : settings of this must be in a JSON format contrary to the settings of
     * current that must be a FILE (in JSON format)
     */
-    Task.prototype.settingsEqual = function (settings_this, settFile_current) {
+    settingsEqual(settings_this, settFile_current) {
         try {
             var settings_current = this.__parseJson__(settFile_current);
             // console.log('okokokok >>>' + settings_this + '<<< //// >>>' + settings_current + '<<<');
@@ -240,12 +230,12 @@ var Task = (function (_super) {
             console.log('ERROR in settingsEqual() : ' + err);
             return false;
         }
-    };
+    }
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
     * Check for differences between the input of this & the input of current
     */
-    Task.prototype.inputEqual = function (inputFile_this, inputFile_current) {
+    inputEqual(inputFile_this, inputFile_current) {
         var data_this = this.__readFile__(inputFile_this);
         var data_current = this.__readFile__(inputFile_current);
         if (data_this === null || data_current === null)
@@ -255,12 +245,12 @@ var Task = (function (_super) {
             return true;
         else
             return false;
-    };
+    }
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
     * Check for differences between the core script of this & the core script of current
     */
-    Task.prototype.coreScriptEqual = function (coreScript_this, coreScript_current) {
+    coreScriptEqual(coreScript_this, coreScript_current) {
         var data_this = this.__readFile__(coreScript_this);
         var data_current = this.__readFile__(coreScript_current);
         if (data_this === null || data_current === null)
@@ -270,23 +260,23 @@ var Task = (function (_super) {
             return true;
         else
             return false;
-    };
+    }
     /*
     * DO NOT MODIFY
     * Search for ONE UNIQUE file ("target") among a list of files (filesDir_array)
     * from a "directory". Possible thanks the "regexTarget".
     */
-    Task.prototype.__searchForOneFile__ = function (directory, filesDir_array, regexTarget) {
+    __searchForOneFile__(directory, filesDir_array, regexTarget) {
         if (!directory) {
-            console.log('WARNING in searchForOneFile() : no directory specified');
+            console.log('WARNING in __searchForOneFile__() : no directory specified');
             return null;
         }
         else if (!filesDir_array) {
-            console.log('WARNING in searchForOneFile() : no filesDir_array specified');
+            console.log('WARNING in __searchForOneFile__() : no filesDir_array specified');
             return null;
         }
         else if (!regexTarget) {
-            console.log('WARNING in searchForOneFile() : no regexTarget specified');
+            console.log('WARNING in __searchForOneFile__() : no regexTarget specified');
             return null;
         }
         if (filesDir_array.length == 0)
@@ -307,7 +297,7 @@ var Task = (function (_super) {
         }
         else
             return fileTarget_array[0];
-    };
+    }
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
     * Check if this task has already been done,
@@ -321,8 +311,8 @@ var Task = (function (_super) {
     * 	(5) check the existence of both parameter files (.json && _coreScript.sh) and input file
     * 	(6) compare all current task files with this task files
     */
-    Task.prototype.alreadyDone = function (jobOpt, data) {
-        var tab_taskDir = this.jobManager.findTaskDir(staticTag); // (1)
+    alreadyDone(jobOpt, data) {
+        var tab_taskDir = this.jobManager.findTaskDir(this.staticTag); // (1)
         if (tab_taskDir.length === 0)
             return null;
         //console.log(tab_taskDir);
@@ -398,19 +388,19 @@ var Task = (function (_super) {
             else if (i === tab_taskDir.length - 1)
                 return null;
         }
-    };
+    }
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
     * With a path, restore a session
     */
-    Task.prototype.restoreByPath = function (pathDir) {
+    restoreByPath(pathDir) {
         if (!pathDir)
             throw 'ERROR : no path specified';
         var basename = path.basename(pathDir);
         var results = this.__readFile__(pathDir + '/' + basename + '.out');
         //console.log(pathDir + '/' + basename + '.out');
         return results;
-    };
+    }
     /*
     * DO NOT MODIFY
     * Pre-processing of the job.
@@ -423,10 +413,10 @@ var Task = (function (_super) {
     * 	- a "generic" part = include parameters that will not change the results of the task
     * 	- a "specific" part = for parameters needed to define precisely the task
     */
-    Task.prototype.__configJob__ = function (modules, exportVar, mode) {
+    __configJob__(modules, exportVar, mode) {
         var jobOpt = {
             'generic': {
-                'id': staticTag + 'Task_' + uuid.v4(),
+                'id': this.staticTag + 'Task_' + uuidv4(null, null, 0),
                 'tWall': '0-00:15',
                 'nCores': null
             },
@@ -452,17 +442,17 @@ var Task = (function (_super) {
             jobOpt.generic.nCores = 1;
         }
         else {
-            console.log("WARNING in configJob : mode not recognized. It must be \"cpu\" or \"gpu\" !");
+            console.log("WARNING in __configJob__() : mode not recognized. It must be \"cpu\" or \"gpu\" !");
         }
         return jobOpt;
-    };
+    }
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
     * to manage the input(s)
     * Use the values in @jsonValue [literal] to configure modules and exportVar for configJob.
     * And prepare the directories and files for the task : JSON (settings) & input(s).
     */
-    Task.prototype.prepareTask = function (jsonValue) {
+    prepareTask(jsonValue) {
         var modules = [];
         var exportVar = {};
         var jobOpt = this.__configJob__(modules, exportVar, 'cpu');
@@ -474,48 +464,47 @@ var Task = (function (_super) {
         // write the input file(s) :
         this.__writeFile__(jobOpt.specific.exportVar.inputFile, jsonValue[name]);
         return jobOpt;
-    };
+    }
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
     * To manage the output(s)
     */
-    Task.prototype.prepareResults = function (chunk) {
+    prepareResults(chunk) {
         if (typeof chunk !== 'string')
             chunk = JSON.stringify(chunk);
         var results = {
             'input': chunk
         };
         return JSON.stringify(results);
-    };
+    }
     /*
     * DO NOT MODIFY
     * Execute all the calculations
     */
-    Task.prototype.__run__ = function (jobOpt) {
-        var _this = this;
+    __run__(jobOpt) {
         var emitter = new events.EventEmitter();
         var j = this.jobManager.push(jobOpt);
-        j.on('completed', function (stdout, stderr, jobObject) {
+        j.on('completed', (stdout, stderr, jobObject) => {
             if (stderr) {
-                stderr.on('data', function (buf) {
+                stderr.on('data', buf => {
                     console.log('stderr content : ');
                     console.log(buf.toString());
                 });
             }
             var chunk = '';
-            stdout.on('data', function (buf) { chunk += buf.toString(); });
-            stdout.on('end', function () {
-                _this.__async__(_this.prepareResults(chunk)).on('end', function (results) {
+            stdout.on('data', buf => { chunk += buf.toString(); });
+            stdout.on('end', () => {
+                this.__async__(this.prepareResults(chunk)).on('end', results => {
                     emitter.emit('jobCompletion', results, jobObject);
                 });
             });
         })
-            .on('error', function (e, j) {
+            .on('error', (e, j) => {
             console.log('job ' + j.id + ' : ' + e);
             emitter.emit('error', e, j.id);
         });
         return emitter;
-    };
+    }
     /*
     * DO NOT MODIFY
     * Parse @toParse [string] to find all JSON objects into.
@@ -524,7 +513,7 @@ var Task = (function (_super) {
     * Returns in @results [literal] a list of JSON objects [@results.jsonTab] and toParse without all JSON substrings [@results.rest].
     * for tests = zede}trgt{"toto" : { "yoyo" : 3}, "input" : "tototo\ntititi\ntatata"} rfr{}ojfr
     */
-    Task.prototype.__stringToJson__ = function (toParse) {
+    __stringToJson__(toParse) {
         var open = '{', close = '}';
         var jsonStart = -1, jsonEnd = -1;
         var counter = 0;
@@ -574,7 +563,7 @@ var Task = (function (_super) {
         }
         result.rest += toParse;
         return result;
-    };
+    }
     /*
     * DO NOT MODIFY
     * Realize all the checks and preparations before running.
@@ -586,8 +575,7 @@ var Task = (function (_super) {
     * 			(5) if yes -> restore
     * 			(6) if no -> run
     */
-    Task.prototype.__processing__ = function (chunk) {
-        var _this = this;
+    __processing__(chunk) {
         if (!chunk)
             throw 'ERROR : Chunk is ' + chunk; // if null or undefined
         var emitter = new events.EventEmitter();
@@ -599,73 +587,72 @@ var Task = (function (_super) {
         var jsonTab = resJsonParser.jsonTab;
         console.log('jsonTab :');
         console.dir(jsonTab);
-        jsonTab.forEach(function (jsonValue, i, array) {
+        jsonTab.forEach((jsonValue, i, array) => {
             //console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
             if (jsonValue === 'null' || jsonValue === 'null\n') {
-                _this.pushClosing();
+                this.pushClosing();
             }
             else {
-                var taskOpt = _this.prepareTask(jsonValue); // (3)
+                var taskOpt = this.prepareTask(jsonValue); // (3)
                 //console.log(taskOpt);
-                var pathRestore = _this.alreadyDone(taskOpt, jsonValue.input); // (4)
+                var pathRestore = this.alreadyDone(taskOpt, jsonValue.input); // (4)
                 if (pathRestore !== null) {
                     console.log('Restoration process started with the path : ' + pathRestore);
-                    _this.__async__(_this.restoreByPath(pathRestore)).on('end', function (results) {
-                        _this.goReading = true;
-                        _this.push(results);
+                    this.__async__(this.restoreByPath(pathRestore)).on('end', results => {
+                        this.goReading = true;
+                        this.push(results);
                         emitter.emit('restored', results);
                     });
                 }
                 else {
                     console.log('No equal task found in previous cache directories : go running !');
-                    _this.__run__(taskOpt)
-                        .on('jobCompletion', function (results, jobObject) {
-                        _this.goReading = true;
-                        _this.push(results); // pushing string = activate the "_read" method
+                    this.__run__(taskOpt)
+                        .on('jobCompletion', (results, jobObject) => {
+                        this.goReading = true;
+                        this.push(results); // pushing string = activate the "_read" method
                         emitter.emit('processed', results);
                     })
-                        .on('error', function (err) {
+                        .on('error', err => {
                         emitter.emit('err');
                     });
                 }
             }
         });
         return emitter;
-    };
+    }
     /*
     * DO NOT MODIFY
     * Necessary to use .pipe(task)
     */
-    Task.prototype._write = function (chunk, encoding, callback) {
-        var _this = this;
+    _write(chunk, encoding, callback) {
         // chunk can be either string or buffer but we need a string
         if (Buffer.isBuffer(chunk))
             chunk = chunk.toString();
         //console.log('>>>>> write');
         this.__processing__(chunk)
-            .on('processed', function (s) {
-            _this.emit('processed', s);
+            .on('processed', s => {
+            this.emit('processed', s);
         })
-            .on('err', function (s) {
-            _this.emit('err', s);
+            .on('err', s => {
+            this.emit('err', s);
         })
-            .on('restored', function (s) {
-            _this.emit('restored', s);
+            .on('restored', s => {
+            this.emit('restored', s);
         });
         callback();
         return this;
-    };
+    }
     /*
     * DO NOT MODIFY
     * Necessary to use task.pipe()
     */
-    Task.prototype._read = function (size) {
+    _read(size) {
         //console.log('>>>>> read');
         if (this.goReading) {
             //console.log('>>>>> read: this.goReading is F');
             this.goReading = false;
         }
-    };
+    }
     /*
     * Try to kill the job(s) of this task
     * WARNING : not implemented :
@@ -676,7 +663,7 @@ var Task = (function (_super) {
         'cancelError' : an error occur while killing
         'listError': an error occur  while listing processes corresponding to pending jobs
     */
-    Task.prototype.kill = function (managerSettings) {
+    kill(managerSettings) {
         var emitter = new events.EventEmitter();
         this.jobManager.stop(managerSettings, this.dynamicTag)
             .on('cleanExit', function () {
@@ -693,16 +680,15 @@ var Task = (function (_super) {
         });
         //console.log(emitter);
         return emitter;
-    };
+    }
     /*
     * DO NOT MODIFY
     * Make a @callback asynchronous
     */
-    Task.prototype.__async__ = function (callback) {
+    __async__(callback) {
         var emitter = new events.EventEmitter;
-        setTimeout(function () { emitter.emit('end', callback); }, 10);
+        setTimeout(() => { emitter.emit('end', callback); }, 10);
         return emitter;
-    };
-    return Task;
-}(stream.Duplex));
+    }
+}
 exports.Task = Task;

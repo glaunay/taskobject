@@ -42,15 +42,15 @@ import jsonfile = require ('jsonfile');
 import JSON = require ('JSON');
 import fs = require ('fs');
 //import {spawn} from 'child_process';
-import uuid = require ('node-uuid');
+import uuidv4 = require ('uuid/v4');
 import path = require ('path');
 import deepEqual = require('deep-equal');
 
 
-const staticTag: string = 'simple2'; // must be unique
 
 
 export class Task extends stream.Duplex {
+	staticTag: string; // must be unique
 	jobManager: any; // example : nslurm
 	cacheDir: string; // specify a repository where to put results
 	dynamicTag: string; // to identify precisely the task when it is created
@@ -72,20 +72,20 @@ export class Task extends stream.Duplex {
 	* Initialize the task parameters.
 	*/
 	constructor (jobManager, jobProfile: {}, taskNum?: number, options?: any) {
-		if (! jobManager) throw 'ERROR : a job manager must be specified';
-		if (! staticTag) throw 'ERROR : no tagTask specified in this module';
 		super(options);
+		if (! jobManager) throw 'ERROR : a job manager must be specified';
 		this.jobManager = jobManager;
+		this.staticTag = 'simple';
 		this.cacheDir = this.jobManager.cacheDir();
 		this.jobProfile = jobProfile;
-		if (taskNum) this.dynamicTag = staticTag + taskNum;
-		else this.dynamicTag = staticTag;
 		this.streamContent = '';
 		this.results = null;
 		this.goReading = false;
 		this.nextInput = false;
 		this.settFile = __dirname + '/data/settings.json';
 		this.firstSet(this.__parseJson__(this.settFile));
+		if (taskNum) this.dynamicTag = this.staticTag + taskNum;
+		else this.dynamicTag = this.staticTag;
 	}
 
 	/*
@@ -97,7 +97,7 @@ export class Task extends stream.Duplex {
 			var dict: {} = jsonfile.readFileSync(file, 'utf8');
 			return dict;
 		} catch (err) {
-			console.log('ERROR in _parseJson() : ' + err);
+			console.log('ERROR in __parseJson__() : ' + err);
 			return null;
 		}
 	}
@@ -147,7 +147,7 @@ export class Task extends stream.Duplex {
 	*/
 	__createDir__ (dirPath: string): void {
 		try { fs.mkdirSync(dirPath); }
-		catch (err) { console.log('ERROR in createDir() : ' + err); }
+		catch (err) { console.log('ERROR in __createDir__() : ' + err); }
 	}
 
 	/*
@@ -158,7 +158,7 @@ export class Task extends stream.Duplex {
 			var content = fs.readFileSync(dirPath, 'utf8');
 			return content;
 		} catch (err) {
-			console.log('ERROR in readFile() : ' + err);
+			console.log('ERROR in __readFile__() : ' + err);
 			return null;
 		}
 	}
@@ -167,16 +167,16 @@ export class Task extends stream.Duplex {
 	* Write the @data in the a file according to the @filePath
 	*/
 	__writeFile__ (filePath: string, data: string): void {
-		try { fs.writeFileSync(filePath, data); }
-		catch (err) { console.log('ERROR in writeFile() : ' + err); }
+		try { fs.writeFileSync(filePath, data, "utf8"); }
+		catch (err) { console.log('ERROR in __writeFile__() : ' + err); }
 	}
 
 	/*
 	* Write @dict in the @filePath with a JSON format
 	*/
 	__writeJson__ (filePath: string, dict: {}): void {
-		try { jsonfile.writeFileSync(filePath, dict); }
-		catch (err) { console.log('ERROR in writeJson() : ' + err); }
+		try { jsonfile.writeFileSync(filePath, dict, "utf8"); }
+		catch (err) { console.log('ERROR in __writeJson__() : ' + err); }
 	}	
 
 	/*
@@ -204,7 +204,7 @@ export class Task extends stream.Duplex {
 			var json2_clone = JSON.parse(JSON.stringify(json2));
 			delete json1_clone.exportVar.inputFile;
 			delete json2_clone.exportVar.inputFile;
-			if (deepEqual(json1_clone,json2_clone)) return true;
+			if (deepEqual(json1_clone, json2_clone, false)) return true;
 			else return false;
 		} else return false;
 	}
@@ -262,13 +262,13 @@ export class Task extends stream.Duplex {
 	*/
 	__searchForOneFile__ (directory: string, filesDir_array: string[], regexTarget: string): string {
 		if (! directory) {
-			console.log('WARNING in searchForOneFile() : no directory specified');
+			console.log('WARNING in __searchForOneFile__() : no directory specified');
 			return null;
 		} else if (! filesDir_array) {
-			console.log('WARNING in searchForOneFile() : no filesDir_array specified');
+			console.log('WARNING in __searchForOneFile__() : no filesDir_array specified');
 			return null;
 		} else if (! regexTarget) {
-			console.log('WARNING in searchForOneFile() : no regexTarget specified');
+			console.log('WARNING in __searchForOneFile__() : no regexTarget specified');
 			return null;
 		}
 		if (filesDir_array.length == 0) return null;
@@ -305,7 +305,7 @@ export class Task extends stream.Duplex {
 	* 	(6) compare all current task files with this task files
 	*/
 	alreadyDone (jobOpt: any, data: string): string {
-		var tab_taskDir = this.jobManager.findTaskDir(staticTag) // (1)
+		var tab_taskDir = this.jobManager.findTaskDir(this.staticTag) // (1)
 		if (tab_taskDir.length === 0) return null;
 		//console.log(tab_taskDir);
 
@@ -398,7 +398,7 @@ export class Task extends stream.Duplex {
 	__configJob__ (modules: string[], exportVar: {}, mode: string): Object {
 	    var jobOpt = {
 	    	'generic' : {
-	    		'id' : <string> staticTag + 'Task_' + uuid.v4(),
+	    		'id' : <string> this.staticTag + 'Task_' + uuidv4(null, null, 0),
 	    		'tWall' : <string> '0-00:15',
 	    		'nCores' : <number> null
 	    	},
@@ -424,7 +424,7 @@ export class Task extends stream.Duplex {
 	        jobOpt.generic.nCores = 1;
 	        // no gres option on CPU
 	    } else {
-	        console.log("WARNING in configJob : mode not recognized. It must be \"cpu\" or \"gpu\" !");
+	        console.log("WARNING in __configJob__() : mode not recognized. It must be \"cpu\" or \"gpu\" !");
 	    }
 	    return jobOpt;
 	}

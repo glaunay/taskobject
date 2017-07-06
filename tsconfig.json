@@ -1,16 +1,19 @@
 {
     "compilerOptions": {
-        "noImplicitAny": false,
-        "module": "commonjs",
-        "moduleResolution": "node",
-        "removeComments": false,
-        "preserveConstEnums": true,
-        "sourceMap": false,
-        "typeRoots" : ["./typings" ],
-        "types": [],
-        "outDir": "./"
+        "allowJs" : true, // to combine with "maxNodeModuleJsDepth" option
+        "listEmittedFiles" : true, // list the JS files created
+        "listFiles" : true, // list the files used during compilation
+        "maxNodeModuleJsDepth" : 10, // obligatory with allowJS
+        "module" : "commonjs", // module code generation
+        "moduleResolution" : "node", // for node.js
+        "outDir" : "./", // path for compiled files
+        "preserveConstEnums" : true,
+        "removeComments" : false,
+        "target" : "ES6", // target version of JavaScript
+        "types" : [],
+        "typeRoots" : ["./typings" ]
     },
-    "files": [
+    "files": [ // path to the files to compile
         "./ts/src/index.ts",
         "./ts/src/test/test.ts"
     ]

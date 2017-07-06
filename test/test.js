@@ -1,9 +1,9 @@
 /// <reference path="../../typings/index.d.ts" />
 "use strict";
-var tk = require("../index");
-var nslurm = require("nslurm");
-var localIP = require("my-local-ip");
-var localIP = localIP();
+const tk = require("../index");
+const nslurm = require("nslurm");
+const localIP = require("my-local-ip");
+var local_IP = localIP();
 var cache, forceCache;
 process.argv.forEach(function (val, index, array) {
     if (val === '-forcecache') {
@@ -25,7 +25,7 @@ if (!cache)
 var managerSettings = {
     "cacheDir": cache,
     "probPreviousCacheDir": [],
-    "tcp": localIP,
+    "tcp": local_IP,
     "port": "2220",
     "slurmBinaries": "/opt/slurm/bin/",
     "jobProfiles": {
@@ -61,10 +61,10 @@ var a = new tk.Task(nslurm, jobProfile);
 //var b = new tk.Task (nslurm, jobProfile); // for reading tests
 // pipeline
 process.stdin.pipe(a)
-    .on('processed', function (s) {
+    .on('processed', s => {
     console.log('**** data');
 })
-    .on('err', function (s) {
+    .on('err', s => {
     console.log('**** ERROR');
 })
     .on('restored', function (s) {
