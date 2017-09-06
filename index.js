@@ -1,3 +1,4 @@
+"use strict";
 /*
 * CLASS TASK
 * settFile must be like :
@@ -25,7 +26,7 @@ A child class of Task must not override methods like : __method__ ()
 
 
 */
-"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 // TODO
 // - git ignore node_modules
 // - kill method (not necessary thanks to the new jobManager with its "engines")
@@ -39,6 +40,7 @@ const fs = require("fs");
 const uuidv4 = require("uuid/v4");
 const path = require("path");
 const deepEqual = require("deep-equal");
+var b_test = false; // test mode
 class Task extends stream.Duplex {
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
@@ -62,6 +64,13 @@ class Task extends stream.Duplex {
             this.dynamicTag = this.staticTag + taskNum;
         else
             this.dynamicTag = this.staticTag;
+    }
+    /*
+    * To (in)activate the test mode : (in)activate all the console.log/dir
+    */
+    testMode(bool) {
+        b_test = bool;
+        console.log('WARNING : Task test mode activated !');
     }
     /*
     * DO NOT MODIFY
@@ -196,7 +205,8 @@ class Task extends stream.Duplex {
     */
     deepSettingsEqual(json1, json2) {
         /* for this task, only json.exportVar.inputFile is unique */
-        //console.log(json1, json2);
+        if (b_test)
+            console.log(json1, json2);
         if (json1.exportVar.inputFile && json2.exportVar.inputFile) {
             var json1_clone = JSON.parse(JSON.stringify(json1));
             var json2_clone = JSON.parse(JSON.stringify(json2));
@@ -219,7 +229,13 @@ class Task extends stream.Duplex {
     settingsEqual(settings_this, settFile_current) {
         try {
             var settings_current = this.__parseJson__(settFile_current);
-            // console.log('okokokok >>>' + settings_this + '<<< //// >>>' + settings_current + '<<<');
+            if (b_test) {
+                console.log('my settings >>>');
+                console.dir(settings_this);
+                console.log('<<< // compared to // settings of current >>>');
+                console.dir(settings_current);
+                console.log('<<<');
+            }
             if (this.deepSettingsEqual(settings_this, settings_current))
                 return true;
             else
@@ -239,7 +255,13 @@ class Task extends stream.Duplex {
         var data_current = this.__readFile__(inputFile_current);
         if (data_this === null || data_current === null)
             return false;
-        //console.log('okokokok >>>' + data_this + '<<< //// >>>' + data_current + '<<<');
+        if (b_test) {
+            console.log('my input >>>');
+            console.dir(data_this);
+            console.log('<<< // compared to // input of current >>>');
+            console.dir(data_current);
+            console.log('<<<');
+        }
         if (data_this === data_current)
             return true;
         else
@@ -254,7 +276,13 @@ class Task extends stream.Duplex {
         var data_current = this.__readFile__(coreScript_current);
         if (data_this === null || data_current === null)
             return false;
-        //console.log('okokokok >>>' + data + '<<< //// >>>' + d + '<<<');
+        if (b_test) {
+            console.log('my coreScript >>>');
+            console.dir(data_this);
+            console.log('<<< // compared to // coreScript of current >>>');
+            console.dir(data_current);
+            console.log('<<<');
+        }
         if (data_this === data_current)
             return true;
         else
@@ -312,9 +340,12 @@ class Task extends stream.Duplex {
     */
     alreadyDone(jobOpt, data) {
         var tab_taskDir = this.jobManager.findTaskDir(this.staticTag); // (1)
+        if (b_test) {
+            console.log("array of " + this.staticTag + " task directories in the cache : ");
+            console.log(tab_taskDir);
+        }
         if (tab_taskDir.length === 0)
             return null;
-        //console.log(tab_taskDir);
         for (var i = 0; i < tab_taskDir.length; i++) {
             var current_taskDir = tab_taskDir[i];
             var current_inputDir = current_taskDir + '_inputs'; // path of the input directory
@@ -329,12 +360,13 @@ class Task extends stream.Duplex {
             var current_jsonFile = null;
             var current_coreScriptFile = null;
             var current_inputFile = null;
-            console.log('basename : ' + basename); // toto = simpleTask_98cb27cb-a0cd-40be-9e39-57ee16256a78
+            if (b_test)
+                console.log('basename : ' + basename); // toto = simpleTask_98cb27cb-a0cd-40be-9e39-57ee16256a78
             try {
                 var files_taskDir = fs.readdirSync(current_taskDir);
             } // read content of the task directory (3)
             catch (err) {
-                console.log('WARNING : ' + err);
+                console.log('WARNING with a task directory in alreadyDone() : ' + err);
                 if (i === tab_taskDir.length - 1)
                     return null;
                 ;
@@ -343,7 +375,7 @@ class Task extends stream.Duplex {
                 var files_inputDir = fs.readdirSync(current_inputDir);
             } // read content of the input directory (3)
             catch (e) {
-                console.log('WARNING : ' + e);
+                console.log('WARNING with an input directory in alreadyDone() : ' + e);
                 if (i === tab_taskDir.length - 1)
                     return null;
             }
@@ -397,7 +429,8 @@ class Task extends stream.Duplex {
             throw 'ERROR : no path specified';
         var basename = path.basename(pathDir);
         var results = this.__readFile__(pathDir + '/' + basename + '.out');
-        //console.log(pathDir + '/' + basename + '.out');
+        if (b_test)
+            console.log(pathDir + '/' + basename + '.out');
         return results;
     }
     /*
@@ -423,6 +456,8 @@ class Task extends stream.Duplex {
                 'script': this.coreScript,
                 'modules': [],
                 'exportVar': exportVar // (2)
+                // inputs : {} // stream or string (path) or string (input)
+                // tagTask : string
             }
         };
         if (modules.length > 0)
@@ -439,6 +474,7 @@ class Task extends stream.Duplex {
         }
         else if (mode === 'cpu') {
             jobOpt.generic.nCores = 1;
+            // no gres option on CPU
         }
         else {
             console.log("WARNING in __configJob__() : mode not recognized. It must be \"cpu\" or \"gpu\" !");
@@ -540,7 +576,8 @@ class Task extends stream.Duplex {
         };
         while (__jsonAvailable__(toParse)) {
             for (var i = 0; i < toParse.length; i++) {
-                //console.log(i, toParse[i]);
+                if (b_test)
+                    console.log(i, toParse[i]);
                 if (toParse[i].match(open)) {
                     if (counter === 0)
                         jsonStart = i; // if a JSON is beginning
@@ -579,21 +616,27 @@ class Task extends stream.Duplex {
             throw 'ERROR : Chunk is ' + chunk; // if null or undefined
         var emitter = new events.EventEmitter();
         this.streamContent += chunk; // (1)
-        console.log('streamContent :');
-        console.log(this.streamContent);
+        if (b_test)
+            console.log('streamContent :');
+        if (b_test)
+            console.log(this.streamContent);
         var resJsonParser = this.__stringToJson__(this.streamContent); // (1)
         this.streamContent = resJsonParser.rest;
         var jsonTab = resJsonParser.jsonTab;
-        console.log('jsonTab :');
-        console.dir(jsonTab);
+        if (b_test)
+            console.log('jsonTab :');
+        if (b_test)
+            console.dir(jsonTab);
         jsonTab.forEach((jsonValue, i, array) => {
-            //console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
+            if (b_test)
+                console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
             if (jsonValue === 'null' || jsonValue === 'null\n') {
                 this.pushClosing();
             }
             else {
                 var taskOpt = this.prepareTask(jsonValue); // (3)
-                //console.log(taskOpt);
+                if (b_test)
+                    console.log(taskOpt);
                 var pathRestore = this.alreadyDone(taskOpt, jsonValue.input); // (4)
                 if (pathRestore !== null) {
                     console.log('Restoration process started with the path : ' + pathRestore);
@@ -627,7 +670,8 @@ class Task extends stream.Duplex {
         // chunk can be either string or buffer but we need a string
         if (Buffer.isBuffer(chunk))
             chunk = chunk.toString();
-        //console.log('>>>>> write');
+        if (b_test)
+            console.log('>>>>> write');
         this.__processing__(chunk)
             .on('processed', s => {
             this.emit('processed', s);
@@ -646,9 +690,11 @@ class Task extends stream.Duplex {
     * Necessary to use task.pipe()
     */
     _read(size) {
-        //console.log('>>>>> read');
+        if (b_test)
+            console.log('>>>>> read');
         if (this.goReading) {
-            //console.log('>>>>> read: this.goReading is F');
+            if (b_test)
+                console.log('>>>>> read: this.goReading is F');
             this.goReading = false;
         }
     }
@@ -677,7 +723,8 @@ class Task extends stream.Duplex {
             .on('errSqueue', function () {
             emitter.emit('errSqueue');
         });
-        //console.log(emitter);
+        if (b_test)
+            console.log(emitter);
         return emitter;
     }
     /*

@@ -2,7 +2,7 @@
     "compilerOptions": {
         "allowJs" : true, // to combine with "maxNodeModuleJsDepth" option
         "listEmittedFiles" : true, // list the JS files created
-        "listFiles" : true, // list the files used during compilation
+        "listFiles" : false, // list the files used during compilation
         "maxNodeModuleJsDepth" : 10, // obligatory with allowJS
         "module" : "commonjs", // module code generation
         "moduleResolution" : "node", // for node.js

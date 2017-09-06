@@ -44,6 +44,9 @@ import uuidv4 = require ('uuid/v4');
 import path = require ('path');
 import deepEqual = require('deep-equal');
 
+declare var __dirname;
+
+var b_test = false; // test mode
 
 
 
@@ -84,6 +87,14 @@ export class Task extends stream.Duplex {
 		this.firstSet(this.__parseJson__(this.settFile));
 		if (taskNum) this.dynamicTag = this.staticTag + taskNum;
 		else this.dynamicTag = this.staticTag;
+	}
+
+	/*
+	* To (in)activate the test mode : (in)activate all the console.log/dir
+	*/
+	testMode (bool: boolean): void {
+		b_test = bool;
+		console.log('WARNING : Task test mode activated !');
 	}
 
 	/*
@@ -196,7 +207,7 @@ export class Task extends stream.Duplex {
 	*/
 	deepSettingsEqual (json1: any, json2: any): boolean {
 		/* for this task, only json.exportVar.inputFile is unique */
-		//console.log(json1, json2);
+		if (b_test) console.log(json1, json2);
 		if (json1.exportVar.inputFile && json2.exportVar.inputFile) {
 			var json1_clone = JSON.parse(JSON.stringify(json1));
 			var json2_clone = JSON.parse(JSON.stringify(json2));
@@ -217,7 +228,13 @@ export class Task extends stream.Duplex {
 	settingsEqual (settings_this: {}, settFile_current: string): boolean {
 		try {
 			var settings_current: {} = this.__parseJson__(settFile_current);
-			// console.log('okokokok >>>' + settings_this + '<<< //// >>>' + settings_current + '<<<');
+			if (b_test) {
+				console.log('my settings >>>');
+				console.dir(settings_this);
+				console.log('<<< // compared to // settings of current >>>');
+				console.dir(settings_current);
+				console.log('<<<');
+			}
 			if (this.deepSettingsEqual(settings_this, settings_current)) return true;
 			else return false;
 		}
@@ -235,7 +252,13 @@ export class Task extends stream.Duplex {
 		var data_this: string = this.__readFile__(inputFile_this);
 		var data_current: string = this.__readFile__(inputFile_current);
 		if (data_this === null || data_current === null) return false;
-		//console.log('okokokok >>>' + data_this + '<<< //// >>>' + data_current + '<<<');
+		if (b_test) {
+			console.log('my input >>>');
+			console.dir(data_this);
+			console.log('<<< // compared to // input of current >>>');
+			console.dir(data_current);
+			console.log('<<<');
+		}
 		if (data_this === data_current) return true;
 		else return false;
 	}
@@ -248,7 +271,13 @@ export class Task extends stream.Duplex {
 		var data_this: string = this.__readFile__(coreScript_this);
 		var data_current: string = this.__readFile__(coreScript_current);
 		if (data_this === null || data_current === null) return false;
-		//console.log('okokokok >>>' + data + '<<< //// >>>' + d + '<<<');
+		if (b_test) {
+			console.log('my coreScript >>>');
+			console.dir(data_this);
+			console.log('<<< // compared to // coreScript of current >>>');
+			console.dir(data_current);
+			console.log('<<<');
+		}
 		if (data_this === data_current) return true;
 		else return false;
 	}
@@ -304,8 +333,11 @@ export class Task extends stream.Duplex {
 	*/
 	alreadyDone (jobOpt: any, data: string): string {
 		var tab_taskDir = this.jobManager.findTaskDir(this.staticTag) // (1)
+		if (b_test) {
+			console.log("array of " + this.staticTag + " task directories in the cache : ");
+			console.log(tab_taskDir);
+		}
 		if (tab_taskDir.length === 0) return null;
-		//console.log(tab_taskDir);
 
 		for (var i = 0; i < tab_taskDir.length; i++) { // (2)
 			var current_taskDir: string = tab_taskDir[i];
@@ -321,16 +353,16 @@ export class Task extends stream.Duplex {
 			var current_jsonFile: string = null;
 			var current_coreScriptFile: string = null;
 			var current_inputFile: string = null;
-			console.log('basename : ' + basename); // toto = simpleTask_98cb27cb-a0cd-40be-9e39-57ee16256a78
+			if (b_test) console.log('basename : ' + basename); // toto = simpleTask_98cb27cb-a0cd-40be-9e39-57ee16256a78
 
 			try { var files_taskDir = fs.readdirSync(current_taskDir); } // read content of the task directory (3)
 			catch (err) {
-				console.log('WARNING : ' + err);
+				console.log('WARNING with a task directory in alreadyDone() : ' + err);
 				if (i === tab_taskDir.length-1) return null;;
 			}
 			try { var files_inputDir = fs.readdirSync(current_inputDir); } // read content of the input directory (3)
 			catch (e) {
-				console.log('WARNING : ' + e);
+				console.log('WARNING with an input directory in alreadyDone() : ' + e);
 				if (i === tab_taskDir.length-1) return null;
 			}
 
@@ -376,7 +408,7 @@ export class Task extends stream.Duplex {
 		if (!pathDir) throw 'ERROR : no path specified';
 		var basename: string = path.basename(pathDir);
 		var results: string = this.__readFile__(pathDir + '/' + basename + '.out');
-		//console.log(pathDir + '/' + basename + '.out');
+		if (b_test) console.log(pathDir + '/' + basename + '.out');
         return results;
 	}
 
@@ -529,7 +561,7 @@ export class Task extends stream.Duplex {
 
 		while (__jsonAvailable__(toParse)) { // while we find a {
 			for (var i = 0; i < toParse.length; i++) {
-				//console.log(i, toParse[i]);
+				if (b_test) console.log(i, toParse[i]);
 				if (toParse[i].match(open)) {
 					if (counter === 0) jsonStart = i; // if a JSON is beginning
 					counter ++;
@@ -569,21 +601,21 @@ export class Task extends stream.Duplex {
 		if (! chunk) throw 'ERROR : Chunk is ' + chunk; // if null or undefined
 		var emitter = new events.EventEmitter();
 		this.streamContent += chunk; // (1)
-		console.log('streamContent :');
-		console.log(this.streamContent);
+		if (b_test) console.log('streamContent :');
+		if (b_test) console.log(this.streamContent);
 		var resJsonParser = this.__stringToJson__(this.streamContent); // (1)
 		this.streamContent = resJsonParser.rest;
 		var jsonTab = resJsonParser.jsonTab;
-		console.log('jsonTab :');
-		console.dir(jsonTab);
+		if (b_test) console.log('jsonTab :');
+		if (b_test) console.dir(jsonTab);
 
 		jsonTab.forEach((jsonValue, i, array) => { // (2)
-			//console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
+			if (b_test) console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
 			if (jsonValue === 'null' || jsonValue === 'null\n') { // if end of the stream by push(null)
 				this.pushClosing();
 			} else {
 				var taskOpt: any = this.prepareTask(jsonValue); // (3)
-				//console.log(taskOpt);
+				if (b_test) console.log(taskOpt);
 				
 				var pathRestore: string = this.alreadyDone(taskOpt, jsonValue.input); // (4)
 				if (pathRestore !== null) { // (5)
@@ -618,7 +650,7 @@ export class Task extends stream.Duplex {
 		// chunk can be either string or buffer but we need a string
 		if (Buffer.isBuffer(chunk)) chunk = chunk.toString();
 
-		//console.log('>>>>> write');
+		if (b_test) console.log('>>>>> write');
 		this.__processing__(chunk)
 		.on('processed', s => {
 			this.emit('processed', s);
@@ -639,9 +671,9 @@ export class Task extends stream.Duplex {
 	* Necessary to use task.pipe()
 	*/
 	_read (size?: number): any {
-		//console.log('>>>>> read');
+		if (b_test) console.log('>>>>> read');
 		if (this.goReading) { // false
-			//console.log('>>>>> read: this.goReading is F');
+			if (b_test) console.log('>>>>> read: this.goReading is F');
             this.goReading = false;
         }
 	}
@@ -672,7 +704,7 @@ export class Task extends stream.Duplex {
 	        emitter.emit('errSqueue');
 	    });
 
-	    //console.log(emitter);
+	    if (b_test) console.log(emitter);
 	    return emitter;
 	}
 

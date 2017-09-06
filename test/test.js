@@ -1,5 +1,6 @@
-/// <reference path="../../typings/index.d.ts" />
 "use strict";
+/// <reference path="../../typings/index.d.ts" />
+Object.defineProperty(exports, "__esModule", { value: true });
 const tk = require("../index");
 const nslurm = require("nslurm");
 const localIP = require("my-local-ip");
