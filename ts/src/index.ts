@@ -198,221 +198,6 @@ export class Task extends stream.Duplex {
 		else this.push('null');
 	}
 
-
-	/*
-	* MUST BE ADAPTED FOR CHILD CLASSES
-	* Bad method but necessary... to compare two JSON objects
-	* In both JSON object, remove the variables that are using the uuid or unique variables.
-	* These variables are unique so JSONs cannot be compared if we don't remove them.
-	*/
-	deepSettingsEqual (json1: any, json2: any): boolean {
-		/* for this task, only json.exportVar.inputFile is unique */
-		if (b_test) console.log(json1, json2);
-		if (json1.exportVar.inputFile && json2.exportVar.inputFile) {
-			var json1_clone = JSON.parse(JSON.stringify(json1));
-			var json2_clone = JSON.parse(JSON.stringify(json2));
-			delete json1_clone.exportVar.inputFile;
-			delete json2_clone.exportVar.inputFile;
-			if (deepEqual(json1_clone, json2_clone, false)) return true;
-			else return false;
-		} else return false;
-	}
-
-
-	/*
-	* MUST BE ADAPTED FOR CHILD CLASSES
-	* Check for differences between the settings of this & the settings of current
-	* WARNING : settings of this must be in a JSON format contrary to the settings of 
-	* current that must be a FILE (in JSON format)
-	*/
-	settingsEqual (settings_this: {}, settFile_current: string): boolean {
-		try {
-			var settings_current: {} = this.__parseJson__(settFile_current);
-			if (b_test) {
-				console.log('my settings >>>');
-				console.dir(settings_this);
-				console.log('<<< // compared to // settings of current >>>');
-				console.dir(settings_current);
-				console.log('<<<');
-			}
-			if (this.deepSettingsEqual(settings_this, settings_current)) return true;
-			else return false;
-		}
-		catch (err) {
-			console.log('ERROR in settingsEqual() : ' + err);
-			return false;
-		}
-	}
-
-	/*
-	* MUST BE ADAPTED FOR CHILD CLASSES
-	* Check for differences between the input of this & the input of current
-	*/
-	inputEqual (inputFile_this: string, inputFile_current: string): boolean {
-		var data_this: string = this.__readFile__(inputFile_this);
-		var data_current: string = this.__readFile__(inputFile_current);
-		if (data_this === null || data_current === null) return false;
-		if (b_test) {
-			console.log('my input >>>');
-			console.dir(data_this);
-			console.log('<<< // compared to // input of current >>>');
-			console.dir(data_current);
-			console.log('<<<');
-		}
-		if (data_this === data_current) return true;
-		else return false;
-	}
-
-	/*
-	* MUST BE ADAPTED FOR CHILD CLASSES
-	* Check for differences between the core script of this & the core script of current
-	*/
-	coreScriptEqual (coreScript_this: string, coreScript_current: string): boolean {
-		var data_this: string = this.__readFile__(coreScript_this);
-		var data_current: string = this.__readFile__(coreScript_current);
-		if (data_this === null || data_current === null) return false;
-		if (b_test) {
-			console.log('my coreScript >>>');
-			console.dir(data_this);
-			console.log('<<< // compared to // coreScript of current >>>');
-			console.dir(data_current);
-			console.log('<<<');
-		}
-		if (data_this === data_current) return true;
-		else return false;
-	}
-
-	/*
-	* DO NOT MODIFY
-	* Search for ONE UNIQUE file ("target") among a list of files (filesDir_array)
-	* from a "directory". Possible thanks the "regexTarget".
-	*/
-	__searchForOneFile__ (directory: string, filesDir_array: string[], regexTarget: string): string {
-		if (! directory) {
-			console.log('WARNING in __searchForOneFile__() : no directory specified');
-			return null;
-		} else if (! filesDir_array) {
-			console.log('WARNING in __searchForOneFile__() : no filesDir_array specified');
-			return null;
-		} else if (! regexTarget) {
-			console.log('WARNING in __searchForOneFile__() : no regexTarget specified');
-			return null;
-		}
-		if (filesDir_array.length == 0) return null;
-		var fileTarget_array: string[] = filesDir_array.filter(function (file) {
-			return file.match(regexTarget); // only files that match
-		}).map(function (file) {
-			return path.join(directory, file);
-		});
-
-		// we want only ONE file :
-		if (fileTarget_array.length > 1) {
-			console.log('WARNING : more than one file found : ' + fileTarget_array);
-			return null;
-		}
-		else if (fileTarget_array.length === 0) {
-			console.log('WARNING : no file found in ' + directory + ' corresponding to : ' + regexTarget);
-			return null;
-		}
-		else
-			return fileTarget_array[0];
-	}
-
-	/*
-	* MUST BE ADAPTED FOR CHILD CLASSES
-	* Check if this task has already been done,
-	* by checking for differences between our actual task ("this") & the finished task (called "current")
-	* (using this.settingsEqual(), this.inputEqual() and this.coreScriptEqual() methods).
-	* Steps :
-	* 	(1) find all task directories which the task is the same type of "this" (according to tagTask)
-	* 	(2) browse task directories
-	* 	(3) read the content of the task directory and the input directory
-	* 	(4) check the existence of the result files (.out and .err)
-	* 	(5) check the existence of both parameter files (.json && _coreScript.sh) and input file
-	* 	(6) compare all current task files with this task files
-	*/
-	alreadyDone (jobOpt: any, data: string): string {
-		var tab_taskDir = this.jobManager.findTaskDir(this.staticTag) // (1)
-		if (b_test) {
-			console.log("array of " + this.staticTag + " task directories in the cache : ");
-			console.log(tab_taskDir);
-		}
-		if (tab_taskDir.length === 0) return null;
-
-		for (var i = 0; i < tab_taskDir.length; i++) { // (2)
-			var current_taskDir: string = tab_taskDir[i];
-		 	var current_inputDir: string = current_taskDir + '_inputs'; // path of the input directory
-			var basename: string = path.basename(current_taskDir); // basename = tagTask + 'Task_' + uuid
-			var re_outFile: string = basename + '.out';
-			var re_errFile: string = basename + '.err';
-			var re_json: string = basename + '_jobOpt.json';
-			var re_coreScript: string = basename + '_coreScript.sh';
-			var re_input: string = basename + '.txt';
-			var current_outFile: string = null;
-			var current_errFile: string = null;
-			var current_jsonFile: string = null;
-			var current_coreScriptFile: string = null;
-			var current_inputFile: string = null;
-			if (b_test) console.log('basename : ' + basename); // toto = simpleTask_98cb27cb-a0cd-40be-9e39-57ee16256a78
-
-			try { var files_taskDir = fs.readdirSync(current_taskDir); } // read content of the task directory (3)
-			catch (err) {
-				console.log('WARNING with a task directory in alreadyDone() : ' + err);
-				if (i === tab_taskDir.length-1) return null;;
-			}
-			try { var files_inputDir = fs.readdirSync(current_inputDir); } // read content of the input directory (3)
-			catch (e) {
-				console.log('WARNING with an input directory in alreadyDone() : ' + e);
-				if (i === tab_taskDir.length-1) return null;
-			}
-
-			// check the existence of the .out and .err files before anything else (4)
-			current_outFile = this.__searchForOneFile__(current_taskDir, files_taskDir, re_outFile);
-			current_errFile = this.__searchForOneFile__(current_taskDir, files_taskDir, re_errFile);
-			if (!current_outFile || !current_errFile) {
-				if (i === tab_taskDir.length-1) return null;
-			}
-			else if (this.__parseJson__(current_outFile) === null) { // if the out file is not a JSON file
-				if (i === tab_taskDir.length-1) return null;
-			}
-			
-			// search for the json, _coreScript.sh and input files (5)
-			current_jsonFile = this.__searchForOneFile__(current_inputDir, files_inputDir, re_json);
-			current_coreScriptFile = this.__searchForOneFile__(current_taskDir, files_taskDir, re_coreScript);
-			current_inputFile = this.__searchForOneFile__(current_inputDir, files_inputDir, re_input);
-
-			if (current_jsonFile && current_coreScriptFile && current_inputFile) { // (6)
-				if (this.settingsEqual(jobOpt.specific, current_jsonFile)) {
-					if (this.coreScriptEqual(this.coreScript, current_coreScriptFile)) {
-						if (this.inputEqual(jobOpt.specific.exportVar.inputFile, current_inputFile)) {
-							console.log('FOUND : ' + basename);
-							return current_taskDir;
-						} else {
-							if (i === tab_taskDir.length-1) return null;
-						}
-					} else {
-						if (i === tab_taskDir.length-1) return null;
-					}
-				} else {
-					if (i === tab_taskDir.length-1) return null;
-				}
-			} else if (i === tab_taskDir.length-1) return null;
-		}
-	}
-
-	/*
-	* MUST BE ADAPTED FOR CHILD CLASSES
-	* With a path, restore a session
-	*/
-	restoreByPath (pathDir: string): string {
-		if (!pathDir) throw 'ERROR : no path specified';
-		var basename: string = path.basename(pathDir);
-		var results: string = this.__readFile__(pathDir + '/' + basename + '.out');
-		if (b_test) console.log(pathDir + '/' + basename + '.out');
-        return results;
-	}
-
-
 	/*
 	* DO NOT MODIFY
 	* Pre-processing of the job.
@@ -593,9 +378,7 @@ export class Task extends stream.Duplex {
 	* 	(1) concatenate @chunk [string] until an input is completed (if we found JSON object(s)).
 	* 	(2) then look at every JSON object we found to :
 	* 		(3) prepare the task = by setting options & creating files for the task
-	* 		(4) check if a previous task was already done :
-	* 			(5) if yes -> restore
-	* 			(6) if no -> run
+	*		(4) run
 	*/
 	__processing__ (chunk: string): events.EventEmitter {
 		if (! chunk) throw 'ERROR : Chunk is ' + chunk; // if null or undefined
@@ -616,27 +399,16 @@ export class Task extends stream.Duplex {
 			} else {
 				var taskOpt: any = this.prepareTask(jsonValue); // (3)
 				if (b_test) console.log(taskOpt);
-				
-				var pathRestore: string = this.alreadyDone(taskOpt, jsonValue.input); // (4)
-				if (pathRestore !== null) { // (5)
-					console.log('Restoration process started with the path : ' + pathRestore);
-					this.__async__(this.restoreByPath(pathRestore)).on('end', results => {
-						this.goReading = true;
-						this.push(results);
-						emitter.emit('restored', results);
-					});
-				} else { // (6)
-					console.log('No equal task found in previous cache directories : go running !');
-					this.__run__(taskOpt)
-					.on('jobCompletion', (results, jobObject) => {
-						this.goReading = true;
-						this.push(results); // pushing string = activate the "_read" method
-						emitter.emit('processed', results);
-					})
-					.on('error', err => {
-						emitter.emit('err');
-					});
-				}
+
+				this.__run__(taskOpt) // (4)
+				.on('jobCompletion', (results, jobObject) => {
+					this.goReading = true;
+					this.push(results); // pushing string = activate the "_read" method
+					emitter.emit('processed', results);
+				})
+				.on('error', err => {
+					emitter.emit('err');
+				});
 			}
 		});
 		return emitter;
