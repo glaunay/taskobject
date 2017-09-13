@@ -3,7 +3,6 @@
 * settFile must be like :
 {
 	"coreScript": "./data/simple.sh",
-	"jobsArray" : [],
 	"wait" : true,
 	"automaticClosure": false,
 	"settings": {}
@@ -51,42 +50,38 @@ var b_test = false; // test mode
 
 
 export class Task extends stream.Duplex {
-	staticTag: string; // must be unique
-	jobManager: any; // example : nslurm
-	cacheDir: string; // specify a repository where to put results
-	dynamicTag: string; // to identify precisely the task when it is created
-	settFile: string; // settings file path
-	coreScript: string; // core script path
-	streamContent: string; // content of the input gived by the stream
-	results: string;
+	jobManager: any; // engineLayer
+	staticTag: string; // tagTask : must be unique
 	jobProfile: {} // including partition, qos, uid, gid (given by jobManager)
-	jobsArray: string[]; // usefull ?
-	wait: boolean; // always TRUE for now = we need to wait all the data before beginning to run
-	automaticClosure: boolean;
-	settings: {}; // specific to each task // usefull ?
+	streamContent: string; // content of the input gived by the stream
 	//private goReading: boolean; // indicate when the read function can be used
 	goReading: boolean; // for tests
 	private nextInput: boolean; // false when the input is not complete
+	settFile: string; // settings file path
+	coreScript: string; // core script path
+	wait: boolean; // always TRUE for now = we need to wait all the data before beginning to run
+	automaticClosure: boolean;
+	settings: {}; // specific to each task // usefull ?
+	streamsPipedArray: stream.Duplex[]; // array of streams, each corresponding to an input (piped on this Task)
+	nStreamPiped: number; // number of stream used in streamsArray
 
 	/*
 	* MUST BE ADAPTED FOR CHILD CLASSES
 	* Initialize the task parameters.
 	*/
-	constructor (jobManager, jobProfile: {}, taskNum?: number, options?: any) {
+	constructor (jobManager, jobProfile: {}, options?: any) {
 		super(options);
 		if (! jobManager) throw 'ERROR : a job manager must be specified';
 		this.jobManager = jobManager;
 		this.staticTag = 'simple';
-		this.cacheDir = this.jobManager.cacheDir();
 		this.jobProfile = jobProfile;
 		this.streamContent = '';
-		this.results = null;
 		this.goReading = false;
 		this.nextInput = false;
 		this.settFile = __dirname + '/data/settings.json';
 		this.firstSet(this.__parseJson__(this.settFile));
-		if (taskNum) this.dynamicTag = this.staticTag + taskNum;
-		else this.dynamicTag = this.staticTag;
+		this.streamsPipedArray = [];
+		this.nStreamPiped = 0;
 	}
 
 	/*
@@ -94,7 +89,8 @@ export class Task extends stream.Duplex {
 	*/
 	testMode (bool: boolean): void {
 		b_test = bool;
-		console.log('WARNING : Task test mode activated !');
+		if (b_test) console.log('NEWS : Task test mode is activated');
+		else console.log('NEWS : Task test mode is off')
 	}
 
 	/*
@@ -120,8 +116,6 @@ export class Task extends stream.Duplex {
 		if (data) {
 			if ('coreScript' in data) this.coreScript = __dirname + '/' + data.coreScript;
 			else this.coreScript = null;
-			if ('jobsArray' in data) this.jobsArray = data.jobsArray;
-			else this.jobsArray = [];
 			if ('wait' in data) this.wait = data.wait;
 			else this.wait = true;
 			if ('automaticClosure' in data) this.automaticClosure = data.automaticClosure;
@@ -139,7 +133,6 @@ export class Task extends stream.Duplex {
 	set (data: any): void {
 		if (data) {
 			if ('coreScript' in data) this.coreScript = __dirname + '/' + data.coreScript;
-			if ('jobsArray' in data) this.jobsArray = data.jobsArray;
 			if ('wait' in data) this.wait = data.wait;
 			if ('automaticClosure' in data) this.automaticClosure = data.automaticClosure;
 			if ('settings' in data) {
@@ -204,67 +197,29 @@ export class Task extends stream.Duplex {
 	* Configure the dictionary to pass to the jobManager.push() function, according to :
 	* 	(1) the list of the modules needed
 	* 	(2) variables to export in the coreScript
-	* 	(3) the profile of our configuration (arwen/arwen-dev, etc.)
-	* 	(4) the "mode" (must be "cpu" or "gpu")
-	* This dictionary is composed of :
-	* 	- a "generic" part = include parameters that will not change the results of the task
-	* 	- a "specific" part = for parameters needed to define precisely the task
+	*	(3) the inputs : stream or string or path
 	*/
-	__configJob__ (modules: string[], exportVar: {}, mode: string): Object {
+	__configJob__ (inputs: any, modules: string[], exportVar: {}): Object {
 	    var jobOpt = {
-	    	'generic' : {
-	    		'id' : <string> this.staticTag + 'Task_' + uuidv4(null, null, 0),
-	    		'tWall' : <string> '0-00:15',
-	    		'nCores' : <number> null
-	    	},
-	        'specific' : {
-	        	'script' : <string> this.coreScript,
-	        	'modules' : <[string]> [], // (1)
-	        	'exportVar' : <{}> exportVar // (2)
-	        	// inputs : {} // stream or string (path) or string (input)
-	        	// tagTask : string
-	        }
+	    	'tagTask' : <string> this.staticTag,
+	    	'script' : <string> this.coreScript,
+	        'modules' : <[string]> modules, // (1)
+	        'exportVar' : <{}> exportVar, // (2)
+	        'inputs' : <{}> inputs // (3)
 	    };
-	    if (modules.length > 0) jobOpt.specific.modules.concat(modules);
-	    jobOpt.specific.exportVar['inputFile'] = this.cacheDir + '/' + jobOpt.generic.id + '_inputs/' + jobOpt.generic.id + '.txt';
-	    // according to our configuration (3)
-	    if (this.jobProfile !== null)
-	    	for (var key in this.jobProfile)
-	    		jobOpt.generic[key] = this.jobProfile[key];
-	    // parameters depending to the mode (4)
-	    if (mode === 'gpu') {
-	        jobOpt.generic.nCores = 1;
-	        jobOpt.generic['gres'] = 'gpu:1';
-	    } else if (mode === 'cpu') {
-	        jobOpt.generic.nCores = 1;
-	        // no gres option on CPU
-	    } else {
-	        console.log("WARNING in __configJob__() : mode not recognized. It must be \"cpu\" or \"gpu\" !");
-	    }
 	    return jobOpt;
 	}
 
-
 	/*
 	* MUST BE ADAPTED FOR CHILD CLASSES
-	* to manage the input(s)
-	* Use the values in @jsonValue [literal] to configure modules and exportVar for configJob.
-	* And prepare the directories and files for the task : JSON (settings) & input(s).
+	* Here are defined all the parameters specific to the task :
+	* 	- modules needed
+	* 	- variables to export in the batch script
 	*/
-	prepareTask (jsonValue: any): Object {
-		var modules: string[] = []
+	prepareTask (inputs: any): Object {
+		var modules: string[] = [];
 		var exportVar: {} = {};
-		var jobOpt: any = this.__configJob__(modules, exportVar, 'cpu');
-		// input name(s)
-		var name: string = 'input';
-
-		var inputDir = this.cacheDir + '/' + jobOpt.generic.id + '_inputs/';
-		this.__createDir__(inputDir); // create the input directory
-		this.__writeJson__(inputDir + '/' + jobOpt.generic.id + '_jobOpt.json', jobOpt.specific); // write the JSON file (settings)
-		// write the input file(s) :
-		this.__writeFile__(jobOpt.specific.exportVar.inputFile, jsonValue[name]);
-
-		return jobOpt;
+		return this.__configJob__(inputs, modules, exportVar);
 	}
 
 	/*
@@ -284,9 +239,9 @@ export class Task extends stream.Duplex {
 	* Execute all the calculations
 	*/
 	__run__ (jobOpt: {}): events.EventEmitter {
+		var self = this;
 		var emitter = new events.EventEmitter();
-
-		var j = this.jobManager.push(jobOpt);
+		var j = self.jobManager.push(self.jobProfile, jobOpt);
 		j.on('completed', (stdout, stderr, jobObject) => {
 			if(stderr) {
                 stderr.on('data', buf => {
@@ -297,13 +252,13 @@ export class Task extends stream.Duplex {
             var chunk: string = '';
             stdout.on('data', buf => { chunk += buf.toString(); });
             stdout.on('end', () => {
-            	this.__async__(this.prepareResults(chunk)).on('end', results => {
+            	self.__async__(self.prepareResults(chunk)).on('end', results => {
             		emitter.emit('jobCompletion', results, jobObject);
             	});
 
             });
 		})
-		.on('error', (e, j) => {
+		j.on('error', (e, j) => {
             console.log('job ' + j.id + ' : ' + e);
             emitter.emit('error', e, j.id);
         });
@@ -319,56 +274,65 @@ export class Task extends stream.Duplex {
 	* Returns in @results [literal] a list of JSON objects [@results.jsonTab] and toParse without all JSON substrings [@results.rest].
 	* for tests = zede}trgt{"toto" : { "yoyo" : 3}, "input" : "tototo\ntititi\ntatata"} rfr{}ojfr
 	*/
-	__stringToJson__ (toParse: string): any {
+	__stringToJson__ (stringT: string): any {
+	var toParse: string = stringT; // copy of string
+	var open: string = '{', close: string = '}';
+	var jsonStart: number = -1, jsonEnd: number = -1;
+	var counter: number = 0;
+	var sub_toParse: string;
+	var result: any = {
+		"rest" : "",
+		"jsonTab" : []
+	};
+
+	/*
+	* Check the existence of a JSON in a string.
+	* Method : search the indice of the first { in the string. Then search a } from the indice to the end of the string.
+	*/
+	var __jsonAvailable__ = function (toParse: string): boolean {
 		var open: string = '{', close: string = '}';
-		var jsonStart: number = -1, jsonEnd: number = -1;
-		var counter: number = 0;
-		var sub_toParse: string;
-		var result: any = {
-			"rest" : "",
-			"jsonTab" : []
-		};
+		// search the first '{'
+		var first_open: number = toParse.search(open);
+		if (first_open === -1) return false;
+		// search a '}' from the first '{' to the end
+		var next_close: number = toParse.substring(first_open).search(close);
+		if (next_close === -1) return false;
+		else return true;
+	}
 
-		/*
-		* Check the existence of a JSON in a string.
-		* Method : search the indice of the first { in the string. Then search a } from the indice to the end of the string.
-		*/
-		var __jsonAvailable__ = function (toParse: string): boolean {
-			var open: string = '{', close: string = '}';
-			// search the first '{'
-			var first_open: number = toParse.search(open);
-			if (first_open === -1) return false;
-			// search a '}' from the first '{' to the end
-			var next_close: number = toParse.substring(first_open).search(close);
-			if (next_close === -1) return false;
-			else return true;
-		}
-
-		while (__jsonAvailable__(toParse)) { // while we find a {
-			for (var i = 0; i < toParse.length; i++) {
-				if (b_test) console.log(i, toParse[i]);
-				if (toParse[i].match(open)) {
-					if (counter === 0) jsonStart = i; // if a JSON is beginning
-					counter ++;
+	while (__jsonAvailable__(toParse)) { // while we find a { and a } after
+		counter = 0, jsonStart = -1, jsonEnd = -1;
+		for (var i = 0; i < toParse.length; i++) {
+			if (b_test) {
+				console.log("i = " + i + " ///// to parse [i] = " + toParse[i] + " ///// counter = " + counter);
+				console.log("jsonStart = " + jsonStart + " ///// jsonEnd = " + jsonEnd)
+			}
+			if (toParse[i].match(open)) {
+				if (counter === 0) {
+					jsonStart = i; // if a JSON is beginning
 				}
-				// looking for a } only if a { was found before
-				if (toParse[i].match(close) && jsonStart !== -1) {
-					counter --;
-					if (counter === 0) { // end of the JSON
-						jsonEnd = i;
-						// prepare the JSON object
-						sub_toParse = toParse.substring(jsonStart, jsonEnd + 1);
-						result.jsonTab.push(JSON.parse(sub_toParse));
+				counter ++;
+			}
+			// looking for a } only if a { was found before
+			if (toParse[i].match(close) && jsonStart !== -1) {
+				counter --;
+				if (counter === 0) { // end of the JSON
+					jsonEnd = i;
+					// prepare the JSON object
+					sub_toParse = toParse.substring(jsonStart, jsonEnd + 1);
+					result.jsonTab.push(JSON.parse(sub_toParse));
 
-						toParse = toParse.replace(sub_toParse, ''); // remove the part of the JSON already parsed
-						jsonStart = -1, jsonEnd = -1;
-					}
+					toParse = toParse.replace(sub_toParse, ''); // remove the part of the JSON already parsed
+					break;
 				}
 			}
 		}
-		result.rest += toParse;
-		return result;
+		// continue the research without all before the first {
+		if (jsonEnd === -1) toParse = toParse.substring(jsonStart+1)
 	}
+	result.rest += toParse;
+	return result;
+}
 
 
 	/*
@@ -381,28 +345,33 @@ export class Task extends stream.Duplex {
 	*		(4) run
 	*/
 	__processing__ (chunk: string): events.EventEmitter {
+		var self = this;
 		if (! chunk) throw 'ERROR : Chunk is ' + chunk; // if null or undefined
 		var emitter = new events.EventEmitter();
-		this.streamContent += chunk; // (1)
-		if (b_test) console.log('streamContent :');
-		if (b_test) console.log(this.streamContent);
-		var resJsonParser = this.__stringToJson__(this.streamContent); // (1)
-		this.streamContent = resJsonParser.rest;
+		self.streamContent += chunk; // (1)
+		if (b_test) {
+			console.log('streamContent :');
+			console.log(self.streamContent);
+		}
+		var resJsonParser = self.__stringToJson__(self.streamContent); // (1)
+		self.streamContent = resJsonParser.rest;
 		var jsonTab = resJsonParser.jsonTab;
-		if (b_test) console.log('jsonTab :');
-		if (b_test) console.dir(jsonTab);
+		if (b_test) {
+			console.log('jsonTab :');
+			console.dir(jsonTab);
+		}
 
 		jsonTab.forEach((jsonValue, i, array) => { // (2)
 			if (b_test) console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
 			if (jsonValue === 'null' || jsonValue === 'null\n') { // if end of the stream by push(null)
-				this.pushClosing();
+				self.pushClosing();
 			} else {
-				var taskOpt: any = this.prepareTask(jsonValue); // (3)
-				if (b_test) console.log(taskOpt);
+				var jobOpt: any = self.prepareTask(jsonValue); // (3)
+				if (b_test) console.log(jobOpt);
 
-				this.__run__(taskOpt) // (4)
+				self.__run__(jobOpt) // (4)
 				.on('jobCompletion', (results, jobObject) => {
-					this.goReading = true;
+					self.goReading = true;
 					this.push(results); // pushing string = activate the "_read" method
 					emitter.emit('processed', results);
 				})
@@ -429,9 +398,6 @@ export class Task extends stream.Duplex {
 		})
 		.on('err', s => {
 			this.emit('err', s);
-		})
-		.on('restored', s => {
-			this.emit('restored', s);
 		});
 		callback();
 		return this;
@@ -451,6 +417,35 @@ export class Task extends stream.Duplex {
 	}
 
 	/*
+	* The Task on which is realized the superPipe obtains a new input type (a new duplex to receive one type of data)
+	*/
+	/*superPipe (s: Task): Task {
+		// a basique duplex :
+		class myDuplex extends stream.Duplex {
+		    waiting: boolean;
+			constructor (options?: any) {
+		    	super(options);
+		    	this.waiting = false;
+		    }
+		    _write (chunk: any, encoding?: string, callback?: any): void {
+		    	if (Buffer.isBuffer(chunk)) chunk = chunk.toString();
+		        this.waiting = false;
+		    	this.push(chunk);
+		    	callback();
+		    }
+			_read (size?: number): void {
+				if (!this.waiting) this.waiting = true;
+			}
+		}
+		var stream_tmp = new myDuplex();
+		s.nStreamPiped ++;
+		s.streamsPipedArray.push(stream_tmp);
+		this.pipe(s.streamsPipedArray[s.nStreamPiped-1]);
+		return s;
+	}
+*/
+
+	/*
 	* Try to kill the job(s) of this task
 	* WARNING : not implemented : 
 	jobManager.stop exposes 4 events:
@@ -462,7 +457,7 @@ export class Task extends stream.Duplex {
 	*/
 	kill (managerSettings): events.EventEmitter {
 		var emitter = new events.EventEmitter();
-	    this.jobManager.stop(managerSettings, this.dynamicTag)
+	    this.jobManager.stop(managerSettings, this.staticTag)
 	    .on('cleanExit', function (){
 	        emitter.emit('cleanExit');
 	    })
