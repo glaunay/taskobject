@@ -30,6 +30,7 @@ A child class of Task must not override methods like : __method__ ()
 // - git ignore node_modules
 // - kill method (not necessary thanks to the new jobManager with its "engines")
 // - implement the writing of more than one input : this.write_inputs()
+// - see how to use the "null" value (when we call the pushClosing() method)
 
 
 
@@ -52,8 +53,10 @@ var b_test = false; // test mode
 export class Task extends stream.Duplex {
 	jobManager: any; // engineLayer
 	staticTag: string; // tagTask : must be unique
-	jobProfile: {} // including partition, qos, uid, gid (given by jobManager)
-	streamContent: string; // content of the input gived by the stream
+	jobProfile: {}; // including partition, qos, uid, gid (given by jobManager)
+	proFunc: Function;
+	streamContent: string; // content of the stream (concatenated chunk)
+	jsonContent: {}[]; // all the whole JSONs found in streamContent
 	//private goReading: boolean; // indicate when the read function can be used
 	goReading: boolean; // for tests
 	private nextInput: boolean; // false when the input is not complete
@@ -62,26 +65,27 @@ export class Task extends stream.Duplex {
 	wait: boolean; // always TRUE for now = we need to wait all the data before beginning to run
 	automaticClosure: boolean;
 	settings: {}; // specific to each task // usefull ?
-	streamsPipedArray: stream.Duplex[]; // array of streams, each corresponding to an input (piped on this Task)
-	nStreamPiped: number; // number of stream used in streamsArray
+	slotArray: any[]; // array of streams, each corresponding to an input (piped on this Task)
 
 	/*
 	* MUST BE ADAPTED FOR CHILD CLASSES
 	* Initialize the task parameters.
 	*/
-	constructor (jobManager, jobProfile: {}, options?: any) {
+	constructor (jobManager, jobProfile: {}, syncMode?: boolean, options?: any) {
 		super(options);
 		if (! jobManager) throw 'ERROR : a job manager must be specified';
 		this.jobManager = jobManager;
 		this.staticTag = 'simple';
 		this.jobProfile = jobProfile;
+		if (syncMode = true) this.proFunc = this.__syncProcess__;
+		else this.proFunc = this.__process__;
 		this.streamContent = '';
+		this.jsonContent = [];
 		this.goReading = false;
 		this.nextInput = false;
 		this.settFile = __dirname + '/data/settings.json';
 		this.firstSet(this.__parseJson__(this.settFile));
-		this.streamsPipedArray = [];
-		this.nStreamPiped = 0;
+		this.slotArray = [];
 	}
 
 	/*
@@ -179,7 +183,25 @@ export class Task extends stream.Duplex {
 	__writeJson__ (filePath: string, dict: {}): void {
 		try { jsonfile.writeFileSync(filePath, dict, "utf8"); }
 		catch (err) { console.log('ERROR in __writeJson__() : ' + err); }
-	}	
+	}
+
+	/*
+	* Concatenate JSONs that are in the same array
+	*/
+	__concatJson__ (jsonTab: {}[]): {} {
+		console.log("jsonTab :")
+		console.log(jsonTab)
+		var newJson: {} = {};
+		for (var i = 0; i < jsonTab.length; i ++) {
+	    	for (var key in jsonTab[i]) {
+	    		if (newJson.hasOwnProperty(key)) throw 'ERROR with jsonTab in __concatJson__ : 2 JSON have the same key';
+	    		newJson[key] = jsonTab[i][key];
+	    	}
+	    }
+	    console.log("newjson :")
+	    console.log(newJson)
+	    return newJson;
+	}
 
 	/*
 	* MUST BE ADAPTED FOR CHILD CLASSES
@@ -197,15 +219,16 @@ export class Task extends stream.Duplex {
 	* Configure the dictionary to pass to the jobManager.push() function, according to :
 	* 	(1) the list of the modules needed
 	* 	(2) variables to export in the coreScript
-	*	(3) the inputs : stream or string or path
+	*	(3) the inputs : stream or string or path in an array of JSONs
 	*/
-	__configJob__ (inputs: any, modules: string[], exportVar: {}): Object {
+	__configJob__ (inputs: {}[], modules: string[], exportVar: {}): Object {
+		var self = this;
 	    var jobOpt = {
-	    	'tagTask' : <string> this.staticTag,
-	    	'script' : <string> this.coreScript,
+	    	'tagTask' : <string> self.staticTag,
+	    	'script' : <string> self.coreScript,
 	        'modules' : <[string]> modules, // (1)
 	        'exportVar' : <{}> exportVar, // (2)
-	        'inputs' : <{}> inputs // (3)
+	        'inputs' : <{}> self.__concatJson__(inputs) // (3)
 	    };
 	    return jobOpt;
 	}
@@ -216,7 +239,7 @@ export class Task extends stream.Duplex {
 	* 	- modules needed
 	* 	- variables to export in the batch script
 	*/
-	prepareTask (inputs: any): Object {
+	prepareJob (inputs: {}[]): Object {
 		var modules: string[] = [];
 		var exportVar: {} = {};
 		return this.__configJob__(inputs, modules, exportVar);
@@ -229,52 +252,20 @@ export class Task extends stream.Duplex {
 	prepareResults (chunk: any): string {
 		if (typeof chunk !== 'string') chunk = JSON.stringify(chunk);
 		var results: {} = {
-			'input' : chunk
+			'inputFile' : chunk
 		};
     	return JSON.stringify(results);
 	}
 
 	/*
 	* DO NOT MODIFY
-	* Execute all the calculations
-	*/
-	__run__ (jobOpt: {}): events.EventEmitter {
-		var self = this;
-		var emitter = new events.EventEmitter();
-		var j = self.jobManager.push(self.jobProfile, jobOpt);
-		j.on('completed', (stdout, stderr, jobObject) => {
-			if(stderr) {
-                stderr.on('data', buf => {
-                    console.log('stderr content : ');
-                    console.log(buf.toString());
-                });
-            }
-            var chunk: string = '';
-            stdout.on('data', buf => { chunk += buf.toString(); });
-            stdout.on('end', () => {
-            	self.__async__(self.prepareResults(chunk)).on('end', results => {
-            		emitter.emit('jobCompletion', results, jobObject);
-            	});
-
-            });
-		})
-		j.on('error', (e, j) => {
-            console.log('job ' + j.id + ' : ' + e);
-            emitter.emit('error', e, j.id);
-        });
-		return emitter;
-	}
-
-
-	/*
-	* DO NOT MODIFY
-	* Parse @toParse [string] to find all JSON objects into.
+	* Parse @stringT [string] to find all JSON objects into.
 	* Method : look at every character in the string to find the start & the end of JSONs,
 	* and then substring according to start & end indices. The substrings are finally converted into JSONs.
-	* Returns in @results [literal] a list of JSON objects [@results.jsonTab] and toParse without all JSON substrings [@results.rest].
+	* Returns in @results [literal] a list of JSON objects [@results.jsonTab] and @stringT without all JSON substrings [@results.rest].
 	* for tests = zede}trgt{"toto" : { "yoyo" : 3}, "input" : "tototo\ntititi\ntatata"} rfr{}ojfr
 	*/
-	__stringToJson__ (stringT: string): any {
+	__findJson__ (stringT: string): any {
 	var toParse: string = stringT; // copy of string
 	var open: string = '{', close: string = '}';
 	var jsonStart: number = -1, jsonEnd: number = -1;
@@ -284,101 +275,196 @@ export class Task extends stream.Duplex {
 		"rest" : "",
 		"jsonTab" : []
 	};
-
-	/*
-	* Check the existence of a JSON in a string.
-	* Method : search the indice of the first { in the string. Then search a } from the indice to the end of the string.
-	*/
-	var __jsonAvailable__ = function (toParse: string): boolean {
-		var open: string = '{', close: string = '}';
-		// search the first '{'
-		var first_open: number = toParse.search(open);
-		if (first_open === -1) return false;
-		// search a '}' from the first '{' to the end
-		var next_close: number = toParse.substring(first_open).search(close);
-		if (next_close === -1) return false;
-		else return true;
-	}
-
-	while (__jsonAvailable__(toParse)) { // while we find a { and a } after
-		counter = 0, jsonStart = -1, jsonEnd = -1;
-		for (var i = 0; i < toParse.length; i++) {
-			if (b_test) {
-				console.log("i = " + i + " ///// to parse [i] = " + toParse[i] + " ///// counter = " + counter);
-				console.log("jsonStart = " + jsonStart + " ///// jsonEnd = " + jsonEnd)
-			}
-			if (toParse[i].match(open)) {
-				if (counter === 0) {
-					jsonStart = i; // if a JSON is beginning
-				}
-				counter ++;
-			}
-			// looking for a } only if a { was found before
-			if (toParse[i].match(close) && jsonStart !== -1) {
-				counter --;
-				if (counter === 0) { // end of the JSON
-					jsonEnd = i;
-					// prepare the JSON object
-					sub_toParse = toParse.substring(jsonStart, jsonEnd + 1);
-					result.jsonTab.push(JSON.parse(sub_toParse));
-
-					toParse = toParse.replace(sub_toParse, ''); // remove the part of the JSON already parsed
-					break;
-				}
-			}
+		/*
+		* Check the existence of JSON extremities in @toParse [string].
+		* Method :
+		* (1) search the indice of the first { in the string
+		* (2) search a } from the indice to the end of the string
+		*/
+		var __detectExtremities__ = function (toParse: string): boolean {
+			var open: string = '{', close: string = '}';
+			var first_open: number = toParse.search(open); // (1)
+			if (first_open === -1) return false;
+			var next_close: number = toParse.substring(first_open).search(close); // (2)
+			if (next_close === -1) return false;
+			else return true;
 		}
-		// continue the research without all before the first {
-		if (jsonEnd === -1) toParse = toParse.substring(jsonStart+1)
+
+		while (__detectExtremities__(toParse)) {
+			counter = 0, jsonStart = -1, jsonEnd = -1;
+			for (var i = 0; i < toParse.length; i++) { // for each character in @toParse
+				if (b_test) {
+					console.log("i = " + i + " ///// to parse [i] = " + toParse[i] + " ///// counter = " + counter);
+					console.log("jsonStart = " + jsonStart + " ///// jsonEnd = " + jsonEnd)
+				}
+				if (toParse[i].match(open)) {
+					if (counter === 0) jsonStart = i; // if a JSON is beginning
+					counter ++;
+				}
+				
+				if (toParse[i].match(close) && jsonStart !== -1) { // looking for a } only if a { was found before
+					counter --;
+					if (counter === 0) { // end of the JSON
+						jsonEnd = i;
+						// prepare the JSON object
+						sub_toParse = toParse.substring(jsonStart, jsonEnd + 1);
+						result.jsonTab.push(JSON.parse(sub_toParse));
+
+						toParse = toParse.replace(sub_toParse, ''); // remove the part of the JSON already parsed
+						break;
+					}
+				}
+			}
+			if (jsonEnd === -1) toParse = toParse.substring(jsonStart+1) // continue the research without all before the first {
+		}
+		result.rest += toParse;
+		return result;
 	}
-	result.rest += toParse;
-	return result;
-}
 
 
 	/*
 	* DO NOT MODIFY
-	* Realize all the checks and preparations before running.
-	* Steps :
-	* 	(1) concatenate @chunk [string] until an input is completed (if we found JSON object(s)).
-	* 	(2) then look at every JSON object we found to :
-	* 		(3) prepare the task = by setting options & creating files for the task
-	*		(4) run
+	* In response to the superPipe method :
+	* use @chunk from @aStream to search for a JSON (at least), and then call the __run__ method.
 	*/
-	__processing__ (chunk: string): events.EventEmitter {
-		var self = this;
-		if (! chunk) throw 'ERROR : Chunk is ' + chunk; // if null or undefined
+	__syncProcess__ (chunk: any, aStream: any): events.EventEmitter {
 		var emitter = new events.EventEmitter();
-		self.streamContent += chunk; // (1)
+		this.__feed_streamContent__(chunk, aStream);
+
+		var numOfRun: number = -1;
+		for (var i in this.slotArray) {
+			if (b_test) {
+				console.log("i : " + i)
+				console.log("slotArray[i] : " + this.slotArray[i])
+			}
+			this.__feed_jsonContent__(this.slotArray[i]);
+			if (numOfRun === -1) numOfRun = aStream.jsonContent.length;
+			if (aStream.jsonContent.length < numOfRun) numOfRun = aStream.jsonContent.length;
+		}
+
+		for (var j = 0; j < numOfRun; j ++) {
+			var inputsTab = [];
+			for (var k in this.slotArray) {
+				inputsTab.push(this.slotArray[k].jsonContent[j])
+			}
+			this.__run__(inputsTab)
+			.on('treated', (results) => {
+				emitter.emit('processed');
+			})
+			.on('err', (err) => {
+				emitter.emit('error');
+			});
+		}
+		return emitter;
+	}
+
+	/*
+	* DO NOT MODIFY
+	* Fill the streamContent of @aStream or @this with @chunk
+	*/
+	__feed_streamContent__ (chunk: any, aStream?: any): void {
+		if (typeof chunk == "undefined") throw 'ERROR : Chunk is ' + chunk;
+		if (Buffer.isBuffer(chunk)) chunk = chunk.toString(); // chunk can be either string or buffer but we need a string
+		
+		var self = this;
+		var streamUsed = typeof aStream != "undefined" ? aStream : self;
+
+		streamUsed.streamContent += chunk;
 		if (b_test) {
 			console.log('streamContent :');
-			console.log(self.streamContent);
+			console.log(streamUsed.streamContent);
 		}
-		var resJsonParser = self.__stringToJson__(self.streamContent); // (1)
-		self.streamContent = resJsonParser.rest;
-		var jsonTab = resJsonParser.jsonTab;
+	}
+
+
+
+	/*
+	* DO NOT MODIFY
+	* Fill the jsonContent of @aStream or @this thanks to the __findJson__ method.
+	*/
+	__feed_jsonContent__ (aStream?: any): void {
+		var self = this;
+		var streamUsed = typeof aStream != "undefined" ? aStream : self;
+
+		var results = this.__findJson__(streamUsed.streamContent); // search for JSON
+		if (results.jsonTab.length < 1) return; // if there is no JSON at all, bye bye
+		streamUsed.jsonContent = streamUsed.jsonContent.concat(results.jsonTab); // take all the JSON detected ...
+		streamUsed.streamContent = results.rest; // ... and keep the rest into streamContent
+		
 		if (b_test) {
-			console.log('jsonTab :');
-			console.dir(jsonTab);
+			console.log('jsonContent :');
+			console.dir(streamUsed.jsonContent);
 		}
+	}
 
-		jsonTab.forEach((jsonValue, i, array) => { // (2)
-			if (b_test) console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
-			if (jsonValue === 'null' || jsonValue === 'null\n') { // if end of the stream by push(null)
-				self.pushClosing();
-			} else {
-				var jobOpt: any = self.prepareTask(jsonValue); // (3)
-				if (b_test) console.log(jobOpt);
-
-				self.__run__(jobOpt) // (4)
-				.on('jobCompletion', (results, jobObject) => {
-					self.goReading = true;
-					this.push(results); // pushing string = activate the "_read" method
-					emitter.emit('processed', results);
-				})
-				.on('error', err => {
-					emitter.emit('err');
-				});
+	/*
+	* DO NOT MODIFY
+	* (1) check if the @jsonValue is null to close the stream : not implemented = see TODO
+	* (2) prepare the job = by setting options & creating files for the task
+	* (3) run
+	* (4) receive all the data
+	* (5) at the end of the reception, prepare the results & send
+	*/
+	__run__ (jsonValue: {}[]): events.EventEmitter {
+		var emitter = new events.EventEmitter();
+		var self = this;
+		// if (jsonValue === 'null' || jsonValue === 'null\n') { // (1)
+		// 	self.pushClosing();
+		// } else {
+			var jobOpt: any = self.prepareJob(jsonValue); // (2) // jsonValue = array of JSONs
+			if (b_test) {
+				console.log("jobOpt :")
+				console.log(jobOpt);
 			}
+			var j = self.jobManager.push(self.jobProfile, jobOpt); // (3)
+			j.on('completed', (stdout, stderr, jobObject) => {
+				if (stderr) {
+	                stderr.on('data', buf => {
+	                    console.error('stderr content : ');
+	                    console.error(buf.toString());
+	                });
+	            }
+	            var chunk: string = '';
+	            stdout.on('data', buf => { chunk += buf.toString(); }); // (4)
+	            stdout.on('end', () => {
+	            	self.__async__(self.prepareResults(chunk)).on('end', results => { // (5)
+	            		self.goReading = true;
+	            		self.push(results); // pushing string = activate the "_read" method
+	            		emitter.emit('treated', results);
+	            	});
+	            });
+	        });
+	        j.on('error', (e, j) => {
+	            console.log('job ' + j.id + ' : ' + e);
+	            emitter.emit('error', e, j.id);
+	        });
+		// }
+		return emitter;
+	}
+
+
+	/*
+	* DO NOT MODIFY
+	* (1) consume chunk
+	* (2) look at every JSON object we found into the jsonContent of @this
+	* (3) treat it
+	*/
+	__process__ (chunk: any): events.EventEmitter {
+		var emitter = new events.EventEmitter();
+		var self = this;
+		this.__feed_streamContent__(chunk); // (1)
+		this.__feed_jsonContent__(); // (1)
+
+		this.jsonContent.forEach((jsonVal, i, array) => { // (2)
+			if (b_test) console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
+			var jsonValue = [jsonVal]; // to adapt to superProcess modifications
+			self.__run__(jsonValue) // (3)
+			.on('treated', (results) => {
+				emitter.emit('processed');
+			})
+			.on('err', (err) => {
+				emitter.emit('error');
+			});
 		});
 		return emitter;
 	}
@@ -388,11 +474,8 @@ export class Task extends stream.Duplex {
 	* Necessary to use .pipe(task)
 	*/
 	_write (chunk: any, encoding?: string, callback?: any): Task {
-		// chunk can be either string or buffer but we need a string
-		if (Buffer.isBuffer(chunk)) chunk = chunk.toString();
-
 		if (b_test) console.log('>>>>> write');
-		this.__processing__(chunk)
+		this.__process__(chunk)
 		.on('processed', s => {
 			this.emit('processed', s);
 		})
@@ -419,31 +502,41 @@ export class Task extends stream.Duplex {
 	/*
 	* The Task on which is realized the superPipe obtains a new input type (a new duplex to receive one type of data)
 	*/
-	/*superPipe (s: Task): Task {
-		// a basique duplex :
-		class myDuplex extends stream.Duplex {
-		    waiting: boolean;
-			constructor (options?: any) {
-		    	super(options);
-		    	this.waiting = false;
-		    }
-		    _write (chunk: any, encoding?: string, callback?: any): void {
-		    	if (Buffer.isBuffer(chunk)) chunk = chunk.toString();
-		        this.waiting = false;
-		    	this.push(chunk);
-		    	callback();
-		    }
-			_read (size?: number): void {
-				if (!this.waiting) this.waiting = true;
-			}
-		}
-		var stream_tmp = new myDuplex();
-		s.nStreamPiped ++;
-		s.streamsPipedArray.push(stream_tmp);
-		this.pipe(s.streamsPipedArray[s.nStreamPiped-1]);
+	superPipe (s: Task): Task {
+		s.addSlot(this);
 		return s;
 	}
-*/
+
+
+	addSlot (previousTask: Task): void {
+		class slot extends stream.Duplex { // a slot is a Duplex
+		    goReading: boolean;
+		    streamContent: string;
+		    jsonContent: {}[]; // array of JSONs
+			constructor (options?: any) {
+		    	super(options);
+		    	this.goReading = false;
+		    	this.streamContent = '';
+		    	this.jsonContent = [];
+		    }
+		    _write (chunk: any, encoding?: string, callback?: any): void {
+		    	self.__syncProcess__(chunk, this)
+		    	.on('processed', s => {
+					self.emit('processed', s);
+				})
+				.on('err', s => {
+					self.emit('err', s);
+				});
+		    	callback();
+		    }
+			_read (size?: number): void {} // we never use this method
+		}
+		var self = this;
+		var stream_tmp = new slot();
+		this.slotArray.push(stream_tmp);
+		previousTask.pipe(stream_tmp);
+	}
+
 
 	/*
 	* Try to kill the job(s) of this task
@@ -487,7 +580,36 @@ export class Task extends stream.Duplex {
 		return emitter;
 	}
 
+
+	/*
+	* Check if @myData is an array (true) or not (false) :
+	* 	- if FALSE : apply @myFunc on @myData.
+	* 	- if TRUE : apply @myFunc on each element of @myData.
+	* WARNING : the argument of @myFunc used with @myData must be the first argument given to @myFunc.
+	*/
+	__applyOnArray__ (myFunc: Function, myData: any): any {
+		var args = Array.prototype.slice.call(arguments, 2); // extract arguments to run @myFunc and put them into an array
+		if (Array.isArray(myData)) {
+			var results = [];
+			for (var i = 0; i < myData.length; i ++) {
+				args = args.unshift(myData[i]);
+				results.push(myFunc.apply(this, args));
+			}
+			return results;
+		} else {
+			args = args.unshift(myData);
+			return myFunc.apply(this, args);
+		}
+	}
+
 }
+
+
+
+
+
+
+
 
 
 
