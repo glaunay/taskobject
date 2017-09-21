@@ -49,9 +49,9 @@ class Task extends stream.Duplex {
         this.staticTag = 'simple';
         this.jobProfile = jobProfile;
         if (syncMode = true)
-            this.proFunc = this.__syncProcess__;
+            this.processFunc = this.__syncProcess__;
         else
-            this.proFunc = this.__process__;
+            this.processFunc = this.__process__;
         this.streamContent = '';
         this.jsonContent = [];
         this.goReading = false;
@@ -321,26 +321,33 @@ class Task extends stream.Duplex {
     */
     __syncProcess__(chunk, aStream) {
         var emitter = new events.EventEmitter();
-        this.__feed_streamContent__(chunk, aStream);
+        var self = this;
+        self.__feed_streamContent__(chunk, aStream);
         var numOfRun = -1;
-        for (var i in this.slotArray) {
+        for (var i in self.slotArray) {
             if (b_test) {
                 console.log("i : " + i);
-                console.log("slotArray[i] : " + this.slotArray[i]);
+                console.log("slotArray[i] : " + self.slotArray[i]);
             }
-            this.__feed_jsonContent__(this.slotArray[i]);
+            self.__feed_jsonContent__(self.slotArray[i]);
             if (numOfRun === -1)
                 numOfRun = aStream.jsonContent.length;
             if (aStream.jsonContent.length < numOfRun)
                 numOfRun = aStream.jsonContent.length;
         }
+        console.log("numOfRun : " + numOfRun);
         for (var j = 0; j < numOfRun; j++) {
+            console.log("j : " + j);
             var inputsTab = [];
-            for (var k in this.slotArray) {
-                inputsTab.push(this.slotArray[k].jsonContent[j]);
+            for (var k in self.slotArray) {
+                inputsTab.push(self.slotArray[k].jsonContent[j]);
             }
-            this.__run__(inputsTab)
+            // for tests
+            inputsTab = [{ "inputFile": '{\n"myData line 1" : "titi"\n}\n' }, { "inputFile2": '{\n"myData line 1" : "tata"\n}\n' }];
+            // end of tests
+            self.__run__(inputsTab)
                 .on('treated', (results) => {
+                self.__applyOnArray__(self.__shift_jsonContent__, self.slotArray);
                 emitter.emit('processed');
             })
                 .on('err', (err) => {
@@ -365,6 +372,13 @@ class Task extends stream.Duplex {
             console.log('streamContent :');
             console.log(streamUsed.streamContent);
         }
+    }
+    /*
+    * DO NOT MODIFY
+    * Remove the first element of the jsonContent of @aStream used for the computation.
+    */
+    __shift_jsonContent__(aStream) {
+        aStream.jsonContent.shift();
     }
     /*
     * DO NOT MODIFY
@@ -429,21 +443,25 @@ class Task extends stream.Duplex {
     }
     /*
     * DO NOT MODIFY
-    * (1) consume chunk
-    * (2) look at every JSON object we found into the jsonContent of @this
-    * (3) treat it
+    * (1) use @aStream (first choice) or @this (second choice)
+    * (2) consume @chunk
+    * (3) look at every JSON object we found into the @jsonContent of @streamUsed
+    * (4) treat it
+    * (5) remove the jsonContent
     */
-    __process__(chunk) {
+    __process__(chunk, aStream) {
         var emitter = new events.EventEmitter();
         var self = this;
-        this.__feed_streamContent__(chunk); // (1)
-        this.__feed_jsonContent__(); // (1)
-        this.jsonContent.forEach((jsonVal, i, array) => {
+        var streamUsed = typeof aStream != "undefined" ? aStream : self; // (1)
+        this.__feed_streamContent__(chunk, streamUsed); // (2)
+        this.__feed_jsonContent__(streamUsed); // (2)
+        streamUsed.jsonContent.forEach((jsonVal, i, array) => {
             if (b_test)
                 console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
             var jsonValue = [jsonVal]; // to adapt to superProcess modifications
-            self.__run__(jsonValue) // (3)
+            self.__run__(jsonValue) // (4)
                 .on('treated', (results) => {
+                self.__shift_jsonContent__(streamUsed); // (5)
                 emitter.emit('processed');
             })
                 .on('err', (err) => {
@@ -454,12 +472,12 @@ class Task extends stream.Duplex {
     }
     /*
     * DO NOT MODIFY
-    * Necessary to use .pipe(task)
+    * Necessary to use anotherTask.pipe(task)
     */
     _write(chunk, encoding, callback) {
         if (b_test)
             console.log('>>>>> write');
-        this.__process__(chunk)
+        this.__process__(chunk) // obligatory asynchronous when using a anotherTask.pipe(this)
             .on('processed', s => {
             this.emit('processed', s);
         })
@@ -471,7 +489,7 @@ class Task extends stream.Duplex {
     }
     /*
     * DO NOT MODIFY
-    * Necessary to use task.pipe()
+    * Necessary to use task.pipe(anotherTask)
     */
     _read(size) {
         if (b_test)
@@ -483,12 +501,17 @@ class Task extends stream.Duplex {
         }
     }
     /*
-    * The Task on which is realized the superPipe obtains a new input type (a new duplex to receive one type of data)
+    * DO NOT MODIFY
+    * Add a slot to the Task on which is realized the superPipe (@s)
     */
     superPipe(s) {
         s.addSlot(this);
         return s;
     }
+    /*
+    * DO NOT MODIFY
+    * Slot = a new duplex to receive one type of data
+    */
     addSlot(previousTask) {
         class slot extends stream.Duplex {
             constructor(options) {
@@ -498,7 +521,7 @@ class Task extends stream.Duplex {
                 this.jsonContent = [];
             }
             _write(chunk, encoding, callback) {
-                self.__syncProcess__(chunk, this)
+                self.processFunc(chunk, this)
                     .on('processed', s => {
                     self.emit('processed', s);
                 })
@@ -553,24 +576,27 @@ class Task extends stream.Duplex {
         return emitter;
     }
     /*
-    * Check if @myData is an array (true) or not (false) :
-    * 	- if FALSE : apply @myFunc on @myData.
-    * 	- if TRUE : apply @myFunc on each element of @myData.
+    * DO NOT MODIFY
     * WARNING : the argument of @myFunc used with @myData must be the first argument given to @myFunc.
+    * (1) extract all the arguments (except @myFunc and @myData) to put them into an array = @args
+    * (2) check if @myData is an array (true) or not (false) :
+    * 	- (3) if TRUE : apply @myFunc on each element of @myData + all the array @args.
+    * 	- (4) if FALSE : apply @myFunc on @myData and the @args.
     */
     __applyOnArray__(myFunc, myData) {
-        var args = Array.prototype.slice.call(arguments, 2); // extract arguments to run @myFunc and put them into an array
+        var self = this;
+        var args = Array.prototype.slice.call(arguments, 2); // (1)
         if (Array.isArray(myData)) {
             var results = [];
-            for (var i = 0; i < myData.length; i++) {
-                args = args.unshift(myData[i]);
-                results.push(myFunc.apply(this, args));
+            for (var i in myData) {
+                args.unshift(myData[i]);
+                results.push(myFunc.apply(self, args));
             }
             return results;
         }
         else {
             args = args.unshift(myData);
-            return myFunc.apply(this, args);
+            return myFunc.apply(self, args);
         }
     }
 }
