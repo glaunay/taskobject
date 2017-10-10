@@ -1,7 +1,7 @@
 /// <reference path="../../typings/index.d.ts" />
 "use strict";
 const tk = require("../index");
-const jobManager = require("nslurm");
+const jobManager = require("nslurm"); // engineLayer branch of course
 const localIP = require("my-local-ip");
 var tcp = localIP(), port = "2220";
 var iJob = null;
@@ -52,7 +52,7 @@ var testTask = function (jobOpt, iJob) {
     var a = new tk.Task(jobManager, jobProfile);
     //var b = new tk.Task (nslurm, jobProfile); // for reading tests
     // pipeline
-    process.stdin.pipe(a)
+    process.stdin.pipe(a) // {"input" : "toto"}
         .on('processed', s => {
         console.log('**** data');
     })
@@ -60,7 +60,6 @@ var testTask = function (jobOpt, iJob) {
         console.log('**** ERROR');
     })
         .pipe(process.stdout);
-    // {"input" : "toto"}
     // var test = "{\"input\" : \"hello";
     // var test2 = " world\"}";
     // a.goReading = true;

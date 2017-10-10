@@ -54,6 +54,7 @@ export class Task extends stream.Duplex {
 	jobManager: any; // engineLayer
 	staticTag: string; // tagTask : must be unique
 	jobProfile: {}; // including partition, qos, uid, gid (given by jobManager)
+	syncMode: boolean; // define the mode : async or not (see next line)
 	processFunc: Function; // async (__process__) or synchronous (__syncProcess__) depending on the mode
 	streamContent: string; // content of the stream (concatenated chunk)
 	jsonContent: {}[]; // all the whole JSONs found in streamContent
@@ -77,7 +78,8 @@ export class Task extends stream.Duplex {
 		this.jobManager = jobManager;
 		this.staticTag = 'simple';
 		this.jobProfile = jobProfile;
-		if (syncMode = true) this.processFunc = this.__syncProcess__;
+		this.syncMode = syncMode;
+		if (this.syncMode === true) this.processFunc = this.__syncProcess__;
 		else this.processFunc = this.__process__;
 		this.streamContent = '';
 		this.jsonContent = [];
@@ -189,8 +191,6 @@ export class Task extends stream.Duplex {
 	* Concatenate JSONs that are in the same array
 	*/
 	__concatJson__ (jsonTab: {}[]): {} {
-		console.log("jsonTab :")
-		console.log(jsonTab)
 		var newJson: {} = {};
 		for (var i = 0; i < jsonTab.length; i ++) {
 	    	for (var key in jsonTab[i]) {
@@ -198,8 +198,10 @@ export class Task extends stream.Duplex {
 	    		newJson[key] = jsonTab[i][key];
 	    	}
 	    }
-	    console.log("newjson :")
-	    console.log(newJson)
+	    if (b_test) {
+		    console.log("newjson :");
+		    console.log(newJson);
+		}
 	    return newJson;
 	}
 
@@ -324,35 +326,41 @@ export class Task extends stream.Duplex {
 
 	/*
 	* DO NOT MODIFY
-	* In response to the superPipe method :
-	* use @chunk from @aStream to search for a JSON (at least), and then call the __run__ method.
+	* Synchronous process method.
+	* Use @chunk from @aStream to search for one JSON (at least), and then call the __run__ method.
 	*/
 	__syncProcess__ (chunk: any, aStream: any): events.EventEmitter {
 		var emitter = new events.EventEmitter();
-		var self = this;
+		var self = this; // self = this = TaskObject =//= aStream = a slot of self
 		self.__feed_streamContent__(chunk, aStream);
 
 		var numOfRun: number = -1;
 		for (var i in self.slotArray) {
+			var slot_i = self.slotArray[i];
 			if (b_test) {
-				console.log("i : " + i)
-				console.log("slotArray[i] : " + self.slotArray[i])
+				console.log("i : " + i);
+				console.log("slotArray[i] : " + slot_i);
 			}
-			self.__feed_jsonContent__(self.slotArray[i]);
-			if (numOfRun === -1) numOfRun = aStream.jsonContent.length;
-			if (aStream.jsonContent.length < numOfRun) numOfRun = aStream.jsonContent.length;
+			self.__feed_jsonContent__(slot_i);
+			// take the length of the smallest jsonContent :
+			if (numOfRun === -1) numOfRun = slot_i.jsonContent.length;
+			if (slot_i.jsonContent.length < numOfRun) numOfRun = slot_i.jsonContent.length;
 		}
-		console.log("numOfRun : " + numOfRun)
+		if (b_test) console.log("numOfRun : " + numOfRun);
 
-		for (var j = 0; j < numOfRun; j ++) {
-			console.log("j : " + j)
+		for (var j = 0; j < numOfRun; j ++) { // not more than the length of the smallest jsonContent
+			if (b_test) {
+				console.log("%%%%%%%%%%%%% here synchronous process");
+				console.log("j : " + j);
+			}
 			var inputsTab = [];
 			for (var k in self.slotArray) { // take the first JSON of each slot
-				inputsTab.push(self.slotArray[k].jsonContent[j])
+				inputsTab.push(self.slotArray[k].jsonContent[j]);
 			}
 			// for tests
 			inputsTab = [ { "inputFile": '{\n"myData line 1" : "titi"\n}\n' }, { "inputFile2": '{\n"myData line 1" : "tata"\n}\n' } ]
 			// end of tests
+			if (b_test) console.log(inputsTab);
 			self.__run__(inputsTab)
 			.on('treated', (results) => {
 				self.__applyOnArray__(self.__shift_jsonContent__, self.slotArray);
@@ -400,6 +408,7 @@ export class Task extends stream.Duplex {
 		var streamUsed = typeof aStream != "undefined" ? aStream : self;
 
 		var results = this.__findJson__(streamUsed.streamContent); // search for JSON
+		if (b_test) console.log(results);
 		if (results.jsonTab.length < 1) return; // if there is no JSON at all, bye bye
 		streamUsed.jsonContent = streamUsed.jsonContent.concat(results.jsonTab); // take all the JSON detected ...
 		streamUsed.streamContent = results.rest; // ... and keep the rest into streamContent
@@ -472,6 +481,12 @@ export class Task extends stream.Duplex {
 		this.__feed_jsonContent__(streamUsed); // (2)
 
 		streamUsed.jsonContent.forEach((jsonVal, i, array) => { // (3)
+			if (b_test) console.log("%%%%%%%%%%%% hello i am processing asynchronous");
+			if (self.syncMode === true) {
+				console.log("WARNING : ASYNC process method is running for an object configured in SYNC mode");
+				console.log("WARNING : (due to the used of write or pipe method)");
+				//console.log(this);
+			}
 			if (b_test) console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
 			var jsonValue = [jsonVal]; // to adapt to superProcess modifications
 			self.__run__(jsonValue) // (4)
@@ -517,14 +532,17 @@ export class Task extends stream.Duplex {
 	}
 
 	/*
-	* DO NOT MODIFY
-	* Add a slot to the Task on which is realized the superPipe (@s)
+	* Add a slot to the Task on which is realized the superPipe (@s).
+	* So @s must be an instance of TaskObject !
 	*/
 	superPipe (s: Task): Task {
-		s.addSlot(this);
+		if (s instanceof Task) {
+			s.addSlot(this);
+		} else {
+			throw "ERROR : Wrong use of superPipe method. In a.superPipe(b), b should be an instance of TaskObject";
+		}
 		return s;
 	}
-
 
 	/*
 	* DO NOT MODIFY
@@ -542,6 +560,10 @@ export class Task extends stream.Duplex {
 		    	this.jsonContent = [];
 		    }
 		    _write (chunk: any, encoding?: string, callback?: any): void {
+		    	if (b_test) {
+			    	console.log("processFunc = ");
+			    	console.log(self.processFunc);
+			    }
 		    	self.processFunc(chunk, this)
 		    	.on('processed', s => {
 					self.emit('processed', s);
@@ -551,11 +573,11 @@ export class Task extends stream.Duplex {
 				});
 		    	callback();
 		    }
-			_read (size?: number): void {} // we never use this method
+			_read (size?: number): void {} // we never use this method but we have to implement it
 		}
 		var self = this;
 		var stream_tmp = new slot();
-		this.slotArray.push(stream_tmp);
+		self.slotArray.push(stream_tmp);
 		previousTask.pipe(stream_tmp);
 	}
 
