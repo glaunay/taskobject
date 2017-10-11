@@ -61,8 +61,9 @@ jobManager.on('ready', function() {
 //////////// tests /////////////
 var testTask = function (jobOpt, iJob) {
     var jobProfile = null;
+    var syncMode = true;
 
-    var a = new tk.Task (jobManager, jobProfile);
+    var a = new tk.Task (jobManager, jobProfile, syncMode);
     //var b = new tk.Task (nslurm, jobProfile); // for reading tests
 
 

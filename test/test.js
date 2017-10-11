@@ -1,5 +1,6 @@
-/// <reference path="../../typings/index.d.ts" />
 "use strict";
+/// <reference path="../../typings/index.d.ts" />
+Object.defineProperty(exports, "__esModule", { value: true });
 const tk = require("../index");
 const jobManager = require("nslurm"); // engineLayer branch of course
 const localIP = require("my-local-ip");
@@ -49,7 +50,8 @@ jobManager.on('ready', function () {
 //////////// tests /////////////
 var testTask = function (jobOpt, iJob) {
     var jobProfile = null;
-    var a = new tk.Task(jobManager, jobProfile);
+    var syncMode = true;
+    var a = new tk.Task(jobManager, jobProfile, syncMode);
     //var b = new tk.Task (nslurm, jobProfile); // for reading tests
     // pipeline
     process.stdin.pipe(a) // {"input" : "toto"}

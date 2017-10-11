@@ -70,27 +70,25 @@ export class Task extends stream.Duplex {
 
 	/*
 	* MUST BE ADAPTED FOR CHILD CLASSES
-	* Initialize the task parameters.
+	* Initialize the task parameters with values gived by user.
 	*/
-	constructor (jobManager, jobProfile: {}, syncMode?: boolean, options?: any) {
+	constructor (jobManager, jobProfile: {}, syncMode: boolean, options?: any) {
 		super(options);
-		if (! jobManager) throw 'ERROR : a job manager must be specified';
+		if (typeof jobManager == "undefined") throw 'ERROR : a job manager must be specified';
+		if (typeof jobProfile == "undefined") throw 'ERROR : a job profile must be specified (even null is correct)';
+		if (typeof syncMode == "undefined") throw 'ERROR : a mode must be specified (sync = true // async = false)';
 		this.jobManager = jobManager;
-		this.staticTag = 'simple';
 		this.jobProfile = jobProfile;
 		this.syncMode = syncMode;
 		if (this.syncMode === true) this.processFunc = this.__syncProcess__;
 		else this.processFunc = this.__process__;
-		this.streamContent = '';
-		this.jsonContent = [];
-		this.goReading = false;
-		this.nextInput = false;
 		this.settFile = __dirname + '/data/settings.json';
-		this.firstSet(this.__parseJson__(this.settFile));
-		this.slotArray = [];
+		this.init(this.__parseJson__(this.settFile));
+		this.staticTag = 'simple';
 	}
 
 	/*
+	* DO NOT MODIFY
 	* To (in)activate the test mode : (in)activate all the console.log/dir
 	*/
 	testMode (bool: boolean): void {
@@ -114,12 +112,13 @@ export class Task extends stream.Duplex {
 	}
 
 	/*
-	* MUST BE ADAPTED FOR CHILD CLASSES
-	* First set of the task : called by the constructor.
-	* data is a literal like { 'author' : 'me', 'settings' : { 't' : 5, 'iterations' : 10 } }
+	* DO NOT MODIFY
+	* Initialization of the task : called by the constructor.
+	* Some values cannot be changed (2), some other values can, according to @data (1).
+	* @data is a literal like { 'author' : 'me', 'settings' : { 't' : 5, 'iterations' : 10 } }
 	*/
-	firstSet (data: any): void {
-		if (data) {
+	init (data: any): void {
+		if (data) { // (1)
 			if ('coreScript' in data) this.coreScript = __dirname + '/' + data.coreScript;
 			else this.coreScript = null;
 			if ('wait' in data) this.wait = data.wait;
@@ -129,6 +128,12 @@ export class Task extends stream.Duplex {
 			if ('settings' in data) this.settings = data.settings;
 			else this.settings = {};
 		}
+		// (2)
+		this.streamContent = '';
+		this.jsonContent = [];
+		this.goReading = false;
+		this.nextInput = false;
+		this.slotArray = [];
 	}
 
 	/*
@@ -151,6 +156,7 @@ export class Task extends stream.Duplex {
 	}
 
 	/*
+	* DO NOT MODIFY
 	* Create a directory according to @dirPath
 	*/
 	__createDir__ (dirPath: string): void {
@@ -159,6 +165,7 @@ export class Task extends stream.Duplex {
 	}
 
 	/*
+	* DO NOT MODIFY
 	* Read a file according to @dirPath and return its @content or null if error
 	*/
 	__readFile__ (dirPath: string): string {
@@ -172,14 +179,16 @@ export class Task extends stream.Duplex {
 	}
 
 	/*
+	* DO NOT MODIFY
 	* Write the @data in the a file according to the @filePath
 	*/
 	__writeFile__ (filePath: string, data: string): void {
-		try { fs.writeFileSync(filePath, data, "utf8"); }
+		try { fs.writeFileSync(filePath, data); }
 		catch (err) { console.log('ERROR in __writeFile__() : ' + err); }
 	}
 
 	/*
+	* DO NOT MODIFY
 	* Write @dict in the @filePath with a JSON format
 	*/
 	__writeJson__ (filePath: string, dict: {}): void {
@@ -188,6 +197,7 @@ export class Task extends stream.Duplex {
 	}
 
 	/*
+	* DO NOT MODIFY
 	* Concatenate JSONs that are in the same array
 	*/
 	__concatJson__ (jsonTab: {}[]): {} {
@@ -532,6 +542,7 @@ export class Task extends stream.Duplex {
 	}
 
 	/*
+	* DO NOT MODIFY
 	* Add a slot to the Task on which is realized the superPipe (@s).
 	* So @s must be an instance of TaskObject !
 	*/
