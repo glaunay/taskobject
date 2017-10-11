@@ -202,7 +202,7 @@ class Task extends stream.Duplex {
         }
         catch (err) {
             console.log('ERROR in __parseJson__() : ' + err);
-            console.log('WARNING : make sure your data contains well writing \"\\n\" !');
+            throw 'WARNING : make sure your data contains well writing \"\\n\" !';
         }
     }
     /*
