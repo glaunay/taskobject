@@ -57,11 +57,13 @@ class Task extends stream.Duplex {
             this.processFunc = this.__syncProcess__;
         else
             this.processFunc = this.__process__;
-        this.settFile = __dirname + '/data/settings.json';
-        this.init(this.__parseJson__(this.settFile));
+        this.rootdir = __dirname;
+        this.settFile = this.rootdir + '/data/settings.json';
+        this.init(this.__parseJsonFile__(this.settFile));
         this.staticTag = 'simple';
     }
     /*
+    * DO NOT MODIFY
     * To (in)activate the test mode : (in)activate all the console.log/dir
     */
     testMode(bool) {
@@ -75,13 +77,13 @@ class Task extends stream.Duplex {
     * DO NOT MODIFY
     * Open a json file and return its content if no error otherwise return null
     */
-    __parseJson__(file) {
+    __parseJsonFile__(file) {
         try {
             var dict = jsonfile.readFileSync(file, 'utf8');
             return dict;
         }
         catch (err) {
-            console.log('ERROR in __parseJson__() : ' + err);
+            console.log('ERROR in __parseJsonFile__() : ' + err);
             return null;
         }
     }
@@ -94,7 +96,7 @@ class Task extends stream.Duplex {
     init(data) {
         if (data) {
             if ('coreScript' in data)
-                this.coreScript = __dirname + '/' + data.coreScript;
+                this.coreScript = this.rootdir + '/' + data.coreScript;
             else
                 this.coreScript = null;
             if ('wait' in data)
@@ -125,7 +127,7 @@ class Task extends stream.Duplex {
     set(data) {
         if (data) {
             if ('coreScript' in data)
-                this.coreScript = __dirname + '/' + data.coreScript;
+                this.coreScript = this.rootdir + '/' + data.coreScript;
             if ('wait' in data)
                 this.wait = data.wait;
             if ('automaticClosure' in data)
@@ -141,6 +143,7 @@ class Task extends stream.Duplex {
         }
     }
     /*
+    * DO NOT MODIFY
     * Create a directory according to @dirPath
     */
     __createDir__(dirPath) {
@@ -152,6 +155,7 @@ class Task extends stream.Duplex {
         }
     }
     /*
+    * DO NOT MODIFY
     * Read a file according to @dirPath and return its @content or null if error
     */
     __readFile__(dirPath) {
@@ -165,6 +169,7 @@ class Task extends stream.Duplex {
         }
     }
     /*
+    * DO NOT MODIFY
     * Write the @data in the a file according to the @filePath
     */
     __writeFile__(filePath, data) {
@@ -176,6 +181,7 @@ class Task extends stream.Duplex {
         }
     }
     /*
+    * DO NOT MODIFY
     * Write @dict in the @filePath with a JSON format
     */
     __writeJson__(filePath, dict) {
@@ -187,6 +193,20 @@ class Task extends stream.Duplex {
         }
     }
     /*
+    * DO NOT MODIFY
+    * Parse @data to check if it is in JSON format.
+    */
+    __parseJson__(data) {
+        try {
+            JSON.parse(data);
+        }
+        catch (err) {
+            console.log('ERROR in __parseJson__() : ' + err);
+            console.log('WARNING : make sure your data contains well writing \"\\n\" !');
+        }
+    }
+    /*
+    * DO NOT MODIFY
     * Concatenate JSONs that are in the same array
     */
     __concatJson__(jsonTab) {
@@ -310,7 +330,7 @@ class Task extends stream.Duplex {
                         jsonEnd = i;
                         // prepare the JSON object
                         sub_toParse = toParse.substring(jsonStart, jsonEnd + 1);
-                        result.jsonTab.push(JSON.parse(sub_toParse));
+                        result.jsonTab.push(this.__parseJson__(sub_toParse));
                         toParse = toParse.replace(sub_toParse, ''); // remove the part of the JSON already parsed
                         break;
                     }
@@ -357,7 +377,7 @@ class Task extends stream.Duplex {
                 inputsTab.push(self.slotArray[k].jsonContent[j]);
             }
             // for tests
-            inputsTab = [{ "inputFile": '{\n"myData line 1" : "titi"\n}\n' }, { "inputFile2": '{\n"myData line 1" : "tata"\n}\n' }];
+            //inputsTab = [ { "inputFile": '{\n"myData line 1" : "titi"\n}\n' }, { "inputFile2": '{\n"myData line 1" : "tata"\n}\n' } ]
             // end of tests
             if (b_test)
                 console.log(inputsTab);
@@ -526,6 +546,7 @@ class Task extends stream.Duplex {
         }
     }
     /*
+    * DO NOT MODIFY
     * Add a slot to the Task on which is realized the superPipe (@s).
     * So @s must be an instance of TaskObject !
     */

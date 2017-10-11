@@ -52,7 +52,6 @@ var b_test = false; // test mode
 
 export class Task extends stream.Duplex {
 	jobManager: any; // engineLayer
-	staticTag: string; // tagTask : must be unique
 	jobProfile: {}; // including partition, qos, uid, gid (given by jobManager)
 	syncMode: boolean; // define the mode : async or not (see next line)
 	processFunc: Function; // async (__process__) or synchronous (__syncProcess__) depending on the mode
@@ -61,12 +60,14 @@ export class Task extends stream.Duplex {
 	//private goReading: boolean; // indicate when the read function can be used
 	goReading: boolean; // for tests
 	private nextInput: boolean; // false when the input is not complete
+	rootdir: string; // = __dirname
 	settFile: string; // settings file path
 	coreScript: string; // core script path
 	wait: boolean; // always TRUE for now = we need to wait all the data before beginning to run
 	automaticClosure: boolean;
 	settings: {}; // specific to each task // usefull ?
 	slotArray: any[]; // array of streams, each corresponding to an input (piped on this Task)
+	staticTag: string; // tagTask : must be unique
 
 	/*
 	* MUST BE ADAPTED FOR CHILD CLASSES
@@ -82,8 +83,9 @@ export class Task extends stream.Duplex {
 		this.syncMode = syncMode;
 		if (this.syncMode === true) this.processFunc = this.__syncProcess__;
 		else this.processFunc = this.__process__;
-		this.settFile = __dirname + '/data/settings.json';
-		this.init(this.__parseJson__(this.settFile));
+		this.rootdir = __dirname;
+		this.settFile = this.rootdir + '/data/settings.json';
+		this.init(this.__parseJsonFile__(this.settFile));
 		this.staticTag = 'simple';
 	}
 
@@ -101,12 +103,12 @@ export class Task extends stream.Duplex {
 	* DO NOT MODIFY
 	* Open a json file and return its content if no error otherwise return null
 	*/
-	__parseJson__ (file: string): {} {
+	__parseJsonFile__ (file: string): {} {
 		try {
 			var dict: {} = jsonfile.readFileSync(file, 'utf8');
 			return dict;
 		} catch (err) {
-			console.log('ERROR in __parseJson__() : ' + err);
+			console.log('ERROR in __parseJsonFile__() : ' + err);
 			return null;
 		}
 	}
@@ -119,7 +121,7 @@ export class Task extends stream.Duplex {
 	*/
 	init (data: any): void {
 		if (data) { // (1)
-			if ('coreScript' in data) this.coreScript = __dirname + '/' + data.coreScript;
+			if ('coreScript' in data) this.coreScript = this.rootdir+ '/' + data.coreScript;
 			else this.coreScript = null;
 			if ('wait' in data) this.wait = data.wait;
 			else this.wait = true;
@@ -143,7 +145,7 @@ export class Task extends stream.Duplex {
 	*/
 	set (data: any): void {
 		if (data) {
-			if ('coreScript' in data) this.coreScript = __dirname + '/' + data.coreScript;
+			if ('coreScript' in data) this.coreScript = this.rootdir + '/' + data.coreScript;
 			if ('wait' in data) this.wait = data.wait;
 			if ('automaticClosure' in data) this.automaticClosure = data.automaticClosure;
 			if ('settings' in data) {
@@ -194,6 +196,18 @@ export class Task extends stream.Duplex {
 	__writeJson__ (filePath: string, dict: {}): void {
 		try { jsonfile.writeFileSync(filePath, dict, "utf8"); }
 		catch (err) { console.log('ERROR in __writeJson__() : ' + err); }
+	}
+
+	/*
+	* DO NOT MODIFY
+	* Parse @data to check if it is in JSON format.
+	*/
+	__parseJson__ (data: {}): void {
+		try { JSON.parse(data) }
+		catch (err) {
+			console.log('ERROR in __parseJson__() : ' + err);
+			console.log('WARNING : make sure your data contains well writing \"\\n\" !');
+		}
 	}
 
 	/*
@@ -251,7 +265,7 @@ export class Task extends stream.Duplex {
 	* 	- modules needed
 	* 	- variables to export in the batch script
 	*/
-	prepareJob (inputs: {}[]): Object {
+	prepareJob (inputs: {}[]): any {
 		var modules: string[] = [];
 		var exportVar: {} = {};
 		return this.__configJob__(inputs, modules, exportVar);
@@ -320,7 +334,7 @@ export class Task extends stream.Duplex {
 						jsonEnd = i;
 						// prepare the JSON object
 						sub_toParse = toParse.substring(jsonStart, jsonEnd + 1);
-						result.jsonTab.push(JSON.parse(sub_toParse));
+						result.jsonTab.push(this.__parseJson__(sub_toParse));
 
 						toParse = toParse.replace(sub_toParse, ''); // remove the part of the JSON already parsed
 						break;
@@ -368,7 +382,7 @@ export class Task extends stream.Duplex {
 				inputsTab.push(self.slotArray[k].jsonContent[j]);
 			}
 			// for tests
-			inputsTab = [ { "inputFile": '{\n"myData line 1" : "titi"\n}\n' }, { "inputFile2": '{\n"myData line 1" : "tata"\n}\n' } ]
+			//inputsTab = [ { "inputFile": '{\n"myData line 1" : "titi"\n}\n' }, { "inputFile2": '{\n"myData line 1" : "tata"\n}\n' } ]
 			// end of tests
 			if (b_test) console.log(inputsTab);
 			self.__run__(inputsTab)
