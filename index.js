@@ -198,7 +198,7 @@ class Task extends stream.Duplex {
     */
     __parseJson__(data) {
         try {
-            JSON.parse(data);
+            return JSON.parse(data);
         }
         catch (err) {
             console.log('ERROR in __parseJson__() : ' + err);

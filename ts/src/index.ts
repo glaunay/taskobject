@@ -202,8 +202,8 @@ export class Task extends stream.Duplex {
 	* DO NOT MODIFY
 	* Parse @data to check if it is in JSON format.
 	*/
-	__parseJson__ (data: {}): void {
-		try { JSON.parse(data) }
+	__parseJson__ (data: {}): {} {
+		try { return JSON.parse(data) }
 		catch (err) {
 			console.log('ERROR in __parseJson__() : ' + err);
 			throw 'WARNING : make sure your data contains well writing \"\\n\" !';
@@ -503,7 +503,7 @@ export class Task extends stream.Duplex {
 		var streamUsed = typeof aStream != "undefined" ? aStream : self; // (1)
 		this.__feed_streamContent__(chunk, streamUsed); // (2)
 		this.__feed_jsonContent__(streamUsed); // (2)
-
+		
 		streamUsed.jsonContent.forEach((jsonVal, i, array) => { // (3)
 			if (b_test) console.log("%%%%%%%%%%%% hello i am processing asynchronous");
 			if (self.syncMode === true) {
