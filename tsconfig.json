@@ -15,6 +15,7 @@
     },
     "files": [ // path to the files to compile
         "./ts/src/index.ts",
-        "./ts/src/test/test.ts"
+        "./ts/src/test/test.ts",
+        "./ts/src/test/simpleTask.ts"
     ]
 }

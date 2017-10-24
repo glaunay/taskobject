@@ -4,7 +4,6 @@
 * settFile must be like :
 {
     "coreScript": "./data/simple.sh",
-    "wait" : true,
     "automaticClosure": false,
     "settings": {}
 }
@@ -12,16 +11,12 @@
 
 * Usage :
 var tk = require('taskObject');
-var taskTest = new tk.Task (jobManager, jobProfile);
+var taskTest = new tk.Task (jobManager, jobProfile, syncMode);
 readableStream.pipe(taskTest).pipe(writableStream);
 
 
 * Inheritance :
-A child class of Task must not override methods like : __method__ ()
-
-
-
-
+A child class of Task must not override methods with a "DO NOT MODIFY" indication
 
 
 */
@@ -29,13 +24,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // TODO
 // - git ignore node_modules
 // - kill method (not necessary thanks to the new jobManager with its "engines")
-// - implement the writing of more than one input : this.write_inputs()
 // - see how to use the "null" value (when we call the pushClosing() method)
+// - __init__ : arguments nommés (soit un JSON soit un string)
+// - tache exemple
+// - dans prepareResults() : mettre le stringify dans une autre fonction
+const fs = require("fs");
 const events = require("events");
 const stream = require("stream");
 const jsonfile = require("jsonfile");
 const JSON = require("JSON");
-const fs = require("fs");
 var b_test = false; // test mode
 class Task extends stream.Duplex {
     /*
@@ -44,6 +41,22 @@ class Task extends stream.Duplex {
     */
     constructor(jobManager, jobProfile, syncMode, options) {
         super(options);
+        this.jobManager = null; // engineLayer
+        this.jobProfile = null; // including partition, qos, uid, gid (given by jobManager)
+        this.syncMode = false; // define the mode : async or not (see next line)
+        this.processFunc = null; // async (__process__) or synchronous (__syncProcess__) depending on the mode
+        this.streamContent = ''; // content of the stream (concatenated chunk)
+        this.jsonContent = []; // all the whole JSONs found in streamContent
+        this.goReading = false; // indicate when the read function can be used
+        this.nextInput = false; // false when the input is not complete
+        this.rootdir = __dirname;
+        this.settFile = null; // settings file path
+        this.coreScript = null; // core script path
+        this.settings = null; // specific to each task // usefull ?
+        this.slotArray = []; // array of streams, each corresponding to an input (piped on this Task)
+        this.staticTag = null; // tagTask : must be unique
+        this.jobsRun = 0; // number of jobs that are still running
+        this.jobsErr = 0; // number of jobs that have emitted an error
         if (typeof jobManager == "undefined")
             throw 'ERROR : a job manager must be specified';
         if (typeof jobProfile == "undefined")
@@ -57,10 +70,6 @@ class Task extends stream.Duplex {
             this.processFunc = this.__syncProcess__;
         else
             this.processFunc = this.__process__;
-        this.rootdir = __dirname;
-        this.settFile = this.rootdir + '/data/settings.json';
-        this.init(this.__parseJsonFile__(this.settFile));
-        this.staticTag = 'simple';
     }
     /*
     * DO NOT MODIFY
@@ -75,67 +84,54 @@ class Task extends stream.Duplex {
     }
     /*
     * DO NOT MODIFY
-    * Open a json file and return its content if no error otherwise return null
+    * Initialization of the task : called ONLY by the constructor.
+    * @data is either a string which describe a path to a JSON file,
+    * or a literal like { 'author' : 'me', 'settings' : { 't' : 5, 'iterations' : 10 } }.
+    * Some values cannot be changed (2), some other values can, according to @userData (1).
     */
-    __parseJsonFile__(file) {
-        try {
-            var dict = jsonfile.readFileSync(file, 'utf8');
-            return dict;
-        }
-        catch (err) {
-            console.log('ERROR in __parseJsonFile__() : ' + err);
-            return null;
-        }
-    }
-    /*
-    * DO NOT MODIFY
-    * Initialization of the task : called by the constructor.
-    * Some values cannot be changed (2), some other values can, according to @data (1).
-    * @data is a literal like { 'author' : 'me', 'settings' : { 't' : 5, 'iterations' : 10 } }
-    */
-    init(data) {
+    __init__(data) {
         if (data) {
-            if ('coreScript' in data)
-                this.coreScript = this.rootdir + '/' + data.coreScript;
+            var userData;
+            if (typeof data === "string")
+                userData = this.__parseJsonFile__(data);
+            else
+                userData = data;
+            // (1) :
+            if ('coreScript' in userData)
+                this.coreScript = this.rootdir + '/' + userData.coreScript;
             else
                 this.coreScript = null;
-            if ('wait' in data)
-                this.wait = data.wait;
-            else
-                this.wait = true;
-            if ('automaticClosure' in data)
-                this.automaticClosure = data.automaticClosure;
+            if ('automaticClosure' in userData)
+                this.automaticClosure = userData.automaticClosure;
             else
                 this.automaticClosure = false;
-            if ('settings' in data)
-                this.settings = data.settings;
+            if ('settings' in userData)
+                this.settings = userData.settings;
             else
                 this.settings = {};
         }
-        // (2)
-        this.streamContent = '';
-        this.jsonContent = [];
-        this.goReading = false;
-        this.nextInput = false;
-        this.slotArray = [];
     }
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
-    * Change task parameters according to the keys in data (JSON format) :
-    * data is a literal like { 'author' : 'me', 'settings' : { 't' : 5, 'iterations' : 10 } }
+    * Change task parameters according to @data :
+    * @data is either a string which describe a path to a JSON file,
+    * or a literal like { 'author' : 'me', 'settings' : { 't' : 5, 'iterations' : 10 } }.
     */
     set(data) {
         if (data) {
-            if ('coreScript' in data)
-                this.coreScript = this.rootdir + '/' + data.coreScript;
-            if ('wait' in data)
-                this.wait = data.wait;
-            if ('automaticClosure' in data)
-                this.automaticClosure = data.automaticClosure;
-            if ('settings' in data) {
-                for (var key in data.settings) {
+            var userData;
+            if (typeof data === "string")
+                userData = this.__parseJsonFile__(data);
+            else
+                userData = data;
+            if ('coreScript' in userData)
+                this.coreScript = this.rootdir + '/' + userData.coreScript;
+            if ('automaticClosure' in userData)
+                this.automaticClosure = userData.automaticClosure;
+            if ('settings' in userData) {
+                for (var key in userData.settings) {
                     if (this.settings.hasOwnProperty(key))
-                        this.settings[key] = data.settings[key];
+                        this.settings[key] = userData.settings[key];
                     else
                         throw 'ERROR : cannot set the ' + key + ' property which does not exist in this task';
                 }
@@ -144,88 +140,20 @@ class Task extends stream.Duplex {
     }
     /*
     * DO NOT MODIFY
-    * Create a directory according to @dirPath
+    * In anticipation of the unique jobManager processus and its monitor mode.e
     */
-    __createDir__(dirPath) {
-        try {
-            fs.mkdirSync(dirPath);
-        }
-        catch (err) {
-            console.log('ERROR in __createDir__() : ' + err);
-        }
-    }
-    /*
-    * DO NOT MODIFY
-    * Read a file according to @dirPath and return its @content or null if error
-    */
-    __readFile__(dirPath) {
-        try {
-            var content = fs.readFileSync(dirPath, 'utf8');
-            return content;
-        }
-        catch (err) {
-            console.log('ERROR in __readFile__() : ' + err);
-            return null;
-        }
-    }
-    /*
-    * DO NOT MODIFY
-    * Write the @data in the a file according to the @filePath
-    */
-    __writeFile__(filePath, data) {
-        try {
-            fs.writeFileSync(filePath, data);
-        }
-        catch (err) {
-            console.log('ERROR in __writeFile__() : ' + err);
-        }
-    }
-    /*
-    * DO NOT MODIFY
-    * Write @dict in the @filePath with a JSON format
-    */
-    __writeJson__(filePath, dict) {
-        try {
-            jsonfile.writeFileSync(filePath, dict, "utf8");
-        }
-        catch (err) {
-            console.log('ERROR in __writeJson__() : ' + err);
-        }
-    }
-    /*
-    * DO NOT MODIFY
-    * Parse @data to check if it is in JSON format.
-    */
-    __parseJson__(data) {
-        try {
-            return JSON.parse(data);
-        }
-        catch (err) {
-            console.log('ERROR in __parseJson__() : ' + err);
-            throw 'WARNING : make sure your data contains well writing \"\\n\" !';
-        }
-    }
-    /*
-    * DO NOT MODIFY
-    * Concatenate JSONs that are in the same array
-    */
-    __concatJson__(jsonTab) {
-        var newJson = {};
-        for (var i = 0; i < jsonTab.length; i++) {
-            for (var key in jsonTab[i]) {
-                if (newJson.hasOwnProperty(key))
-                    throw 'ERROR with jsonTab in __concatJson__ : 2 JSON have the same key';
-                newJson[key] = jsonTab[i][key];
-            }
-        }
-        if (b_test) {
-            console.log("newjson :");
-            console.log(newJson);
-        }
-        return newJson;
+    getState() {
+        return {
+            "staticTag": this.staticTag,
+            "syncMode": this.syncMode,
+            "jobProfile": this.jobProfile,
+            "stillRunning": this.jobsRun,
+            "errorEmitted": this.jobsErr
+        };
     }
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
+    * NOT USED FOR NOW
     * According to the parameter this.automaticClosure,
     * close definitely this task or just push the string "null"
     */
@@ -273,7 +201,7 @@ class Task extends stream.Duplex {
         if (typeof chunk !== 'string')
             chunk = JSON.stringify(chunk);
         var results = {
-            'inputFile': chunk
+            'out': chunk
         };
         return JSON.stringify(results);
     }
@@ -408,13 +336,6 @@ class Task extends stream.Duplex {
             console.log('streamContent :');
             console.log(streamUsed.streamContent);
         }
-    }
-    /*
-    * DO NOT MODIFY
-    * Remove the first element of the jsonContent of @aStream used for the computation.
-    */
-    __shift_jsonContent__(aStream) {
-        aStream.jsonContent.shift();
     }
     /*
     * DO NOT MODIFY
@@ -603,6 +524,7 @@ class Task extends stream.Duplex {
         'listError': an error occur  while listing processes corresponding to pending jobs
     */
     kill(managerSettings) {
+        console.log('ERROR : The kill method is not implemented yet');
         var emitter = new events.EventEmitter();
         this.jobManager.stop(managerSettings, this.staticTag)
             .on('cleanExit', function () {
@@ -619,15 +541,6 @@ class Task extends stream.Duplex {
         });
         if (b_test)
             console.log(emitter);
-        return emitter;
-    }
-    /*
-    * DO NOT MODIFY
-    * Make a @callback asynchronous
-    */
-    __async__(callback) {
-        var emitter = new events.EventEmitter;
-        setTimeout(() => { emitter.emit('end', callback); }, 10);
         return emitter;
     }
     /*
@@ -654,5 +567,88 @@ class Task extends stream.Duplex {
             return myFunc.apply(self, args);
         }
     }
+    /*
+    * DO NOT MODIFY
+    * Concatenate JSONs that are in the same array
+    */
+    __concatJson__(jsonTab) {
+        var newJson = {};
+        for (var i = 0; i < jsonTab.length; i++) {
+            for (var key in jsonTab[i]) {
+                if (newJson.hasOwnProperty(key))
+                    throw 'ERROR with jsonTab in __concatJson__ : 2 JSON have the same key';
+                newJson[key] = jsonTab[i][key];
+            }
+        }
+        if (b_test) {
+            console.log("newjson :");
+            console.log(newJson);
+        }
+        return newJson;
+    }
+    /*
+    * DO NOT MODIFY
+    * Remove the first element of the jsonContent of @aStream used for the computation.
+    */
+    __shift_jsonContent__(aStream) {
+        aStream.jsonContent.shift();
+    }
+    /*
+    * DO NOT MODIFY
+    * Open a json file and return its content if no error otherwise return null
+    */
+    __parseJsonFile__(file) {
+        try {
+            var dict = jsonfile.readFileSync(file, 'utf8');
+            return dict;
+        }
+        catch (err) {
+            console.log('ERROR in parseJsonFile() : ' + err);
+            return null;
+        }
+    }
+    /*
+    * DO NOT MODIFY
+    * Parse @data to check if it is in JSON format.
+    */
+    __parseJson__(data) {
+        try {
+            return JSON.parse(data);
+        }
+        catch (err) {
+            console.log('ERROR in __parseJson__() : ' + err);
+            throw 'WARNING : make sure your data contains well writing \"\\n\" !';
+        }
+    }
+    /*
+    * DO NOT MODIFY
+    * Make a @callback asynchronous
+    */
+    __async__(callback) {
+        var emitter = new events.EventEmitter;
+        setTimeout(() => { emitter.emit('end', callback); }, 10);
+        return emitter;
+    }
 }
 exports.Task = Task;
+/*
+* DO NOT MODIFY
+* Read an @entryFile, replace the real "\n" and "\r" by written "\n" and "\r" (visible into the string).
+* Then return the content using a readable stream.
+*/
+function readEntry(entryFile) {
+    try {
+        var content = fs.readFileSync(entryFile, 'utf8');
+        content = content.replace('\n', '\\n').replace('\r', '\\r');
+        var s = new stream.Readable();
+        s.push(content);
+        s.push(null);
+        return s;
+    }
+    catch (err) {
+        console.log('ERROR while opening the file ' + entryFile + ' :');
+        console.log(err);
+        return null;
+    }
+}
+exports.readEntry = readEntry;

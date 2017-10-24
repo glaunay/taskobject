@@ -1,47 +1,51 @@
 /// <reference path="../../typings/index.d.ts" />
 
+/*
+TO RUN :
+node /path/to/this/script/test.js -cache /path/to/cache/tmp/ -conf /path/to/nslurm/config/arwenConf.json
+*/
+
+import sim = require ('./simpleTask');
 import tk = require ('../index');
-import jsonfile = require ('jsonfile');
 import jobManager = require ('nslurm'); // engineLayer branch of course
-import path = require ('path');
 import localIP = require ('my-local-ip');
+import jsonfile = require ('jsonfile');
 
 var tcp = localIP(), port = "2220";
-var iJob = null;
-var engineType, cacheDir;
-var jobOpt = {};
+var engineType = null, cacheDir = null, bean = null;
 var optCacheDir = [];
 
 
-
 process.argv.forEach(function (val, index, array){
-    if (val === '-cache'){
+    if (val === '-cache') {
         if (! array[index + 1]) throw("usage : ");
         cacheDir = array[index + 1];
     }
-});
-
-if (! cacheDir) throw 'No cacheDir specified !'; // /home/mgarnier/tmp
-
-var bean = {
-    "engineType": "slurm",
-    "cacheDir": cacheDir,
-    "probPreviousCacheDir": [
-        "/home/mgarnier/taskObject_devTests/tmp/forceCache/",
-        "/home/mgarnier/tmp"
-    ],
-    "binaries": {
-        "cancelBin": "/opt/slurm/bin/scancel",
-        "submitBin": "/opt/slurm/bin/sbatch",
-        "queueBin": "/opt/slurm/bin/squeue"
+    if (val === '-conf') {
+        if (! array[index + 1]) throw("usage : ");
+        try {
+            bean = jsonfile.readFileSync(array[index + 1]);
+        } catch (err) {
+            console.log('ERROR while reading the config file :');
+            console.log(err)
+        }
     }
-};
+});
+if (! cacheDir) throw 'No cacheDir specified !';
+// example CACHEDIR = /home/mgarnier/tmp
+if (! bean) throw 'No config file specified !';
+// example BEAN = /home/mgarnier/taskObject_devTests/node_modules/nslurm/config/arwenConf.json
+
 engineType = engineType ? engineType : bean.engineType;
+bean.cacheDir = cacheDir ? cacheDir : bean.cacheDir;
+console.log("Config file content:\n");
+console.dir(bean);
 
 optCacheDir.push(bean.cacheDir);
 
 
 ///////////// jobManager /////////////
+//jobManager.debugOn();
 jobManager.index(optCacheDir);
 jobManager.configure({"engine" : engineType, "binaries" : bean.binaries });
 
@@ -54,21 +58,24 @@ jobManager.on('exhausted', function(){
     console.log("All jobs processed");
 });
 jobManager.on('ready', function() {
-    testTask(jobOpt, iJob);
+    simpleTest();
 });
 
 
 //////////// tests /////////////
-var testTask = function (jobOpt, iJob) {
-    var jobProfile = null;
+var simpleTest = function () {
+    var jobProfile = null; // "arwen_express" for example
     var syncMode = true;
+    var entryFile = __dirname + "/entry.json";
 
-    var a = new tk.Task (jobManager, jobProfile, syncMode);
-    //var b = new tk.Task (nslurm, jobProfile); // for reading tests
+    var a = new sim.Simple (jobManager, jobProfile, syncMode);
+    //a.testMode(true);
+    //var b = new sim.Simple (nslurm, jobProfile, syncMode); // for reading tests
 
 
     // pipeline
-    process.stdin.pipe(a) // {"input" : "toto"}
+    //process.stdin.pipe(a); // {"input" : "toto"} for example
+    tk.readEntry(entryFile).pipe(a)
     .on('processed', s => {
     	console.log('**** data');
     })
@@ -83,19 +90,6 @@ var testTask = function (jobOpt, iJob) {
     //     console.log('**** ERROR 22222');
     // })
     .pipe(process.stdout);
-
-
-
-    
-    // var test = "{\"input\" : \"hello";
-    // var test2 = " world\"}";
-    // a.goReading = true;
-    // a.push(test)
-
-    // setTimeout(() => {
-    //     a.goReading = true;
-    //     a.push(test2)
-    // }, 15000);
 
 }
 
