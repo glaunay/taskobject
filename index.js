@@ -22,11 +22,9 @@ A child class of Task must not override methods with a "DO NOT MODIFY" indicatio
 */
 Object.defineProperty(exports, "__esModule", { value: true });
 // TODO
-// - git ignore node_modules
 // - kill method (not necessary thanks to the new jobManager with its "engines")
 // - see how to use the "null" value (when we call the pushClosing() method)
-// - __init__ : arguments nommés (soit un JSON soit un string)
-// - tache exemple
+// - init() : arguments nommés (soit un JSON soit un string)
 // - dans prepareResults() : mettre le stringify dans une autre fonction
 const fs = require("fs");
 const events = require("events");
@@ -44,19 +42,19 @@ class Task extends stream.Duplex {
         this.jobManager = null; // engineLayer
         this.jobProfile = null; // including partition, qos, uid, gid (given by jobManager)
         this.syncMode = false; // define the mode : async or not (see next line)
-        this.processFunc = null; // async (__process__) or synchronous (__syncProcess__) depending on the mode
+        this.processFunc = null; // async (process) or synchronous (syncProcess) depending on the mode
         this.streamContent = ''; // content of the stream (concatenated chunk)
         this.jsonContent = []; // all the whole JSONs found in streamContent
         this.goReading = false; // indicate when the read function can be used
-        this.nextInput = false; // false when the input is not complete
+        this.nextInput = false; // false when the input is not complete // usefull ?
+        this.slotArray = []; // array of streams, each corresponding to an input (piped on this Task)
+        this.jobsRun = 0; // number of jobs that are still running
+        this.jobsErr = 0; // number of jobs that have emitted an error
         this.rootdir = __dirname;
         this.settFile = null; // settings file path
         this.coreScript = null; // core script path
         this.settings = null; // specific to each task // usefull ?
-        this.slotArray = []; // array of streams, each corresponding to an input (piped on this Task)
         this.staticTag = null; // tagTask : must be unique
-        this.jobsRun = 0; // number of jobs that are still running
-        this.jobsErr = 0; // number of jobs that have emitted an error
         if (typeof jobManager == "undefined")
             throw 'ERROR : a job manager must be specified';
         if (typeof jobProfile == "undefined")
@@ -67,9 +65,9 @@ class Task extends stream.Duplex {
         this.jobProfile = jobProfile;
         this.syncMode = syncMode;
         if (this.syncMode === true)
-            this.processFunc = this.__syncProcess__;
+            this.processFunc = this.syncProcess;
         else
-            this.processFunc = this.__process__;
+            this.processFunc = this.process;
     }
     /*
     * DO NOT MODIFY
@@ -87,16 +85,14 @@ class Task extends stream.Duplex {
     * Initialization of the task : called ONLY by the constructor.
     * @data is either a string which describe a path to a JSON file,
     * or a literal like { 'author' : 'me', 'settings' : { 't' : 5, 'iterations' : 10 } }.
-    * Some values cannot be changed (2), some other values can, according to @userData (1).
     */
-    __init__(data) {
+    init(data) {
         if (data) {
             var userData;
             if (typeof data === "string")
-                userData = this.__parseJsonFile__(data);
+                userData = this.parseJsonFile(data);
             else
                 userData = data;
-            // (1) :
             if ('coreScript' in userData)
                 this.coreScript = this.rootdir + '/' + userData.coreScript;
             else
@@ -121,7 +117,7 @@ class Task extends stream.Duplex {
         if (data) {
             var userData;
             if (typeof data === "string")
-                userData = this.__parseJsonFile__(data);
+                userData = this.parseJsonFile(data);
             else
                 userData = data;
             if ('coreScript' in userData)
@@ -171,14 +167,14 @@ class Task extends stream.Duplex {
     * 	(2) variables to export in the coreScript
     *	(3) the inputs : stream or string or path in an array of JSONs
     */
-    __configJob__(inputs, modules, exportVar) {
+    configJob(inputs, modules, exportVar) {
         var self = this;
         var jobOpt = {
             'tagTask': self.staticTag,
             'script': self.coreScript,
             'modules': modules,
             'exportVar': exportVar,
-            'inputs': self.__concatJson__(inputs) // (3)
+            'inputs': self.concatJson(inputs) // (3)
         };
         return jobOpt;
     }
@@ -191,7 +187,7 @@ class Task extends stream.Duplex {
     prepareJob(inputs) {
         var modules = [];
         var exportVar = {};
-        return this.__configJob__(inputs, modules, exportVar);
+        return this.configJob(inputs, modules, exportVar);
     }
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
@@ -213,7 +209,7 @@ class Task extends stream.Duplex {
     * Returns in @results [literal] a list of JSON objects [@results.jsonTab] and @stringT without all JSON substrings [@results.rest].
     * for tests = zede}trgt{"toto" : { "yoyo" : 3}, "input" : "tototo\ntititi\ntatata"} rfr{}ojfr
     */
-    __findJson__(stringT) {
+    findJson(stringT) {
         var toParse = stringT; // copy of string
         var open = '{', close = '}';
         var jsonStart = -1, jsonEnd = -1;
@@ -229,7 +225,7 @@ class Task extends stream.Duplex {
         * (1) search the indice of the first { in the string
         * (2) search a } from the indice to the end of the string
         */
-        var __detectExtremities__ = function (toParse) {
+        var detectExtremities = function (toParse) {
             var open = '{', close = '}';
             var first_open = toParse.search(open); // (1)
             if (first_open === -1)
@@ -240,7 +236,7 @@ class Task extends stream.Duplex {
             else
                 return true;
         };
-        while (__detectExtremities__(toParse)) {
+        while (detectExtremities(toParse)) {
             counter = 0, jsonStart = -1, jsonEnd = -1;
             for (var i = 0; i < toParse.length; i++) {
                 if (b_test) {
@@ -258,7 +254,7 @@ class Task extends stream.Duplex {
                         jsonEnd = i;
                         // prepare the JSON object
                         sub_toParse = toParse.substring(jsonStart, jsonEnd + 1);
-                        result.jsonTab.push(this.__parseJson__(sub_toParse));
+                        result.jsonTab.push(this.parseJson(sub_toParse));
                         toParse = toParse.replace(sub_toParse, ''); // remove the part of the JSON already parsed
                         break;
                     }
@@ -273,12 +269,12 @@ class Task extends stream.Duplex {
     /*
     * DO NOT MODIFY
     * Synchronous process method.
-    * Use @chunk from @aStream to search for one JSON (at least), and then call the __run__ method.
+    * Use @chunk from @aStream to search for one JSON (at least), and then call the run method.
     */
-    __syncProcess__(chunk, aStream) {
+    syncProcess(chunk, aStream) {
         var emitter = new events.EventEmitter();
         var self = this; // self = this = TaskObject =//= aStream = a slot of self
-        self.__feed_streamContent__(chunk, aStream);
+        self.feed_streamContent(chunk, aStream);
         var numOfRun = -1;
         for (var i in self.slotArray) {
             var slot_i = self.slotArray[i];
@@ -286,7 +282,7 @@ class Task extends stream.Duplex {
                 console.log("i : " + i);
                 console.log("slotArray[i] : " + slot_i);
             }
-            self.__feed_jsonContent__(slot_i);
+            self.feed_jsonContent(slot_i);
             // take the length of the smallest jsonContent :
             if (numOfRun === -1)
                 numOfRun = slot_i.jsonContent.length;
@@ -309,9 +305,9 @@ class Task extends stream.Duplex {
             // end of tests
             if (b_test)
                 console.log(inputsTab);
-            self.__run__(inputsTab)
+            self.run(inputsTab)
                 .on('treated', (results) => {
-                self.__applyOnArray__(self.__shift_jsonContent__, self.slotArray);
+                self.applyOnArray(self.shift_jsonContent, self.slotArray);
                 emitter.emit('processed');
             })
                 .on('err', (err) => {
@@ -324,7 +320,7 @@ class Task extends stream.Duplex {
     * DO NOT MODIFY
     * Fill the streamContent of @aStream or @this with @chunk
     */
-    __feed_streamContent__(chunk, aStream) {
+    feed_streamContent(chunk, aStream) {
         if (typeof chunk == "undefined")
             throw 'ERROR : Chunk is ' + chunk;
         if (Buffer.isBuffer(chunk))
@@ -339,12 +335,12 @@ class Task extends stream.Duplex {
     }
     /*
     * DO NOT MODIFY
-    * Fill the jsonContent of @aStream or @this thanks to the __findJson__ method.
+    * Fill the jsonContent of @aStream or @this thanks to the findJson method.
     */
-    __feed_jsonContent__(aStream) {
+    feed_jsonContent(aStream) {
         var self = this;
         var streamUsed = typeof aStream != "undefined" ? aStream : self;
-        var results = this.__findJson__(streamUsed.streamContent); // search for JSON
+        var results = this.findJson(streamUsed.streamContent); // search for JSON
         if (b_test)
             console.log(results);
         if (results.jsonTab.length < 1)
@@ -364,7 +360,7 @@ class Task extends stream.Duplex {
     * (4) receive all the data
     * (5) at the end of the reception, prepare the results & send
     */
-    __run__(jsonValue) {
+    run(jsonValue) {
         var emitter = new events.EventEmitter();
         var self = this;
         // if (jsonValue === 'null' || jsonValue === 'null\n') { // (1)
@@ -386,7 +382,7 @@ class Task extends stream.Duplex {
             var chunk = '';
             stdout.on('data', buf => { chunk += buf.toString(); }); // (4)
             stdout.on('end', () => {
-                self.__async__(self.prepareResults(chunk)).on('end', results => {
+                self.async(self.prepareResults(chunk)).on('end', results => {
                     self.goReading = true;
                     self.push(results); // pushing string = activate the "_read" method
                     emitter.emit('treated', results);
@@ -408,12 +404,12 @@ class Task extends stream.Duplex {
     * (4) treat it
     * (5) remove the jsonContent
     */
-    __process__(chunk, aStream) {
+    process(chunk, aStream) {
         var emitter = new events.EventEmitter();
         var self = this;
         var streamUsed = typeof aStream != "undefined" ? aStream : self; // (1)
-        this.__feed_streamContent__(chunk, streamUsed); // (2)
-        this.__feed_jsonContent__(streamUsed); // (2)
+        this.feed_streamContent(chunk, streamUsed); // (2)
+        this.feed_jsonContent(streamUsed); // (2)
         streamUsed.jsonContent.forEach((jsonVal, i, array) => {
             if (b_test)
                 console.log("%%%%%%%%%%%% hello i am processing asynchronous");
@@ -425,9 +421,9 @@ class Task extends stream.Duplex {
             if (b_test)
                 console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
             var jsonValue = [jsonVal]; // to adapt to superProcess modifications
-            self.__run__(jsonValue) // (4)
+            self.run(jsonValue) // (4)
                 .on('treated', (results) => {
-                self.__shift_jsonContent__(streamUsed); // (5)
+                self.shift_jsonContent(streamUsed); // (5)
                 emitter.emit('processed');
             })
                 .on('err', (err) => {
@@ -443,7 +439,7 @@ class Task extends stream.Duplex {
     _write(chunk, encoding, callback) {
         if (b_test)
             console.log('>>>>> write');
-        this.__process__(chunk) // obligatory asynchronous when using a anotherTask.pipe(this)
+        this.process(chunk) // obligatory asynchronous when using a anotherTask.pipe(this)
             .on('processed', s => {
             this.emit('processed', s);
         })
@@ -551,7 +547,7 @@ class Task extends stream.Duplex {
     * 	- (3) if TRUE : apply @myFunc on each element of @myData + all the array @args.
     * 	- (4) if FALSE : apply @myFunc on @myData and the @args.
     */
-    __applyOnArray__(myFunc, myData) {
+    applyOnArray(myFunc, myData) {
         var self = this;
         var args = Array.prototype.slice.call(arguments, 2); // (1)
         if (Array.isArray(myData)) {
@@ -571,12 +567,12 @@ class Task extends stream.Duplex {
     * DO NOT MODIFY
     * Concatenate JSONs that are in the same array
     */
-    __concatJson__(jsonTab) {
+    concatJson(jsonTab) {
         var newJson = {};
         for (var i = 0; i < jsonTab.length; i++) {
             for (var key in jsonTab[i]) {
                 if (newJson.hasOwnProperty(key))
-                    throw 'ERROR with jsonTab in __concatJson__ : 2 JSON have the same key';
+                    throw 'ERROR with jsonTab in concatJson() : 2 JSON have the same key';
                 newJson[key] = jsonTab[i][key];
             }
         }
@@ -590,14 +586,14 @@ class Task extends stream.Duplex {
     * DO NOT MODIFY
     * Remove the first element of the jsonContent of @aStream used for the computation.
     */
-    __shift_jsonContent__(aStream) {
+    shift_jsonContent(aStream) {
         aStream.jsonContent.shift();
     }
     /*
     * DO NOT MODIFY
     * Open a json file and return its content if no error otherwise return null
     */
-    __parseJsonFile__(file) {
+    parseJsonFile(file) {
         try {
             var dict = jsonfile.readFileSync(file, 'utf8');
             return dict;
@@ -611,12 +607,12 @@ class Task extends stream.Duplex {
     * DO NOT MODIFY
     * Parse @data to check if it is in JSON format.
     */
-    __parseJson__(data) {
+    parseJson(data) {
         try {
             return JSON.parse(data);
         }
         catch (err) {
-            console.log('ERROR in __parseJson__() : ' + err);
+            console.log('ERROR in parseJson() : ' + err);
             throw 'WARNING : make sure your data contains well writing \"\\n\" !';
         }
     }
@@ -624,7 +620,7 @@ class Task extends stream.Duplex {
     * DO NOT MODIFY
     * Make a @callback asynchronous
     */
-    __async__(callback) {
+    async(callback) {
         var emitter = new events.EventEmitter;
         setTimeout(() => { emitter.emit('end', callback); }, 10);
         return emitter;

@@ -13,7 +13,7 @@ export class Simple extends tk.Task {
 		super(jobManager, jobProfile, syncMode, options);
         this.rootdir = __dirname;
         this.settFile = this.rootdir + '/../data/settings.json';
-        super.__init__(this.settFile);
+        super.init(this.settFile);
         this.staticTag = 'simple';
 	}
 
@@ -25,7 +25,7 @@ export class Simple extends tk.Task {
     prepareJob (inputs: {}[]): any {
         var modules: string[] = [];
         var exportVar: {} = {};
-        return super.__configJob__(inputs, modules, exportVar);
+        return super.configJob(inputs, modules, exportVar);
     }
 
     /*
