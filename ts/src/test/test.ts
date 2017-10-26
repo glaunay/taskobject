@@ -70,7 +70,7 @@ var simpleTest = function () {
 
     var a = new sim.Simple (jobManager, jobProfile, syncMode);
     //a.testMode(true);
-    //var b = new sim.Simple (nslurm, jobProfile, syncMode); // for reading tests
+    var b = new sim.Simple (jobManager, jobProfile, syncMode); // for reading tests
 
 
     // pipeline
@@ -82,13 +82,13 @@ var simpleTest = function () {
     .on('err', s => {
     	console.log('**** ERROR');
     })
-    // .pipe(b)
-    // .on('processed', s => {
-    //     console.log('**** data 22222');
-    // })
-    // .on('err', s => {
-    //     console.log('**** ERROR 22222');
-    // })
+    .superPipe(b)
+    .on('processed', s => {
+        console.log('**** data 22222');
+    })
+    .on('err', s => {
+        console.log('**** ERROR 22222');
+    })
     .pipe(process.stdout);
 
 }

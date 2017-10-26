@@ -64,7 +64,7 @@ var simpleTest = function () {
     var entryFile = __dirname + "/entry.json";
     var a = new sim.Simple(jobManager, jobProfile, syncMode);
     //a.testMode(true);
-    //var b = new sim.Simple (nslurm, jobProfile, syncMode); // for reading tests
+    var b = new sim.Simple(jobManager, jobProfile, syncMode); // for reading tests
     // pipeline
     //process.stdin.pipe(a); // {"input" : "toto"} for example
     tk.readEntry(entryFile).pipe(a)
@@ -73,6 +73,13 @@ var simpleTest = function () {
     })
         .on('err', s => {
         console.log('**** ERROR');
+    })
+        .superPipe(b)
+        .on('processed', s => {
+        console.log('**** data 22222');
+    })
+        .on('err', s => {
+        console.log('**** ERROR 22222');
     })
         .pipe(process.stdout);
 };

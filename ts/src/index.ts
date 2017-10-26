@@ -41,15 +41,15 @@ var b_test: boolean = false; // test mode
 
 
 
-export class Task extends stream.Duplex {
-	private jobManager: any = null; // engineLayer
-	private jobProfile: {} = null; // including partition, qos, uid, gid (given by jobManager)
-	private syncMode: boolean = false; // define the mode : async or not (see next line)
-	private processFunc: Function = null; // async (process) or synchronous (syncProcess) depending on the mode
+export abstract class Task extends stream.Duplex {
+	private readonly jobManager: any = null; // engineLayer
+	private readonly jobProfile: {} = null; // including partition, qos, uid, gid (given by jobManager)
+	private readonly syncMode: boolean = false; // define the mode : async or not (see next line)
+	private readonly processFunc: Function = null; // async (process) or synchronous (syncProcess) depending on the mode
 	private streamContent: string = ''; // content of the stream (concatenated chunk)
 	private jsonContent: {}[] = []; // all the whole JSONs found in streamContent
 	private goReading: boolean = false; // indicate when the read function can be used
-	private nextInput: boolean = false; // false when the input is not complete // usefull ?
+	private readonly nextInput: boolean = false; // false when the input is not complete // usefull ?
 	private slotArray: any[] = []; // array of streams, each corresponding to an input (piped on this Task)
 	private jobsRun: number = 0; // number of jobs that are still running
 	private jobsErr: number = 0; // number of jobs that have emitted an error

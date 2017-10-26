@@ -2,10 +2,17 @@
 
 # a simple bash script to create a JSON from each line of $inputFile
 
-sleep 8
+sleep 5
+
+contentInput=`cat $input`
+
 echo "{"
-i=0;
-#less $inputFile
-echo `for line in $(cat $input); do ((i++)); echo "\"myData line $i\" : \"$line\","; done | head --bytes -2;`
+
+if [ ${#contentInput} -gt 2 ] # IF length of contentFile > 2
+then
+	i=0;
+	tmp=`for line in $contentInput; do ((i++)); echo "\"myData line $i\" : \"$line\","; done`
+	echo $tmp | cut -c1-$(expr ${#tmp} - 1)
+fi
 
 echo "}"
