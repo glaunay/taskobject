@@ -22,10 +22,13 @@ A child class of Task must not override methods with a "DO NOT MODIFY" indicatio
 
 
 // TODO
-// - kill method (not necessary thanks to the new jobManager with its "engines")
-// - see how to use the "null" value (when we call the pushClosing() method)
-// - init() : arguments nommés (soit un JSON soit un string)
-// - dans prepareResults() : mettre le stringify dans une autre fonction
+// - doc
+// - NPM
+// - kill() method (not necessary thanks to the new jobManager with its "engines")
+// - pushClosing() method : if @chunk receive a null value
+// - init() method : arguments nommés (soit un JSON soit un string)
+// - prepareResults() method : mettre le stringify dans une autre fonction
+
 
 
 import fs = require ('fs');
@@ -42,11 +45,11 @@ var b_test: boolean = false; // test mode
 
 
 export abstract class Task extends stream.Duplex {
-	private readonly jobManager: any = null; // engineLayer
-	private readonly jobProfile: {} = null; // including partition, qos, uid, gid (given by jobManager)
+	private readonly jobManager: any = null; // job manager (engineLayer version)
+	private readonly jobProfile: string = null; // "arwen_express" for example (see the different config into nslurm module)
 	private readonly syncMode: boolean = false; // define the mode : async or not (see next line)
 	private readonly processFunc: Function = null; // async (process) or synchronous (syncProcess) depending on the mode
-	private streamContent: string = ''; // content of the stream (concatenated chunk)
+	private streamContent: string = ''; // content of the stream (concatenated @chunk)
 	private jsonContent: {}[] = []; // all the whole JSONs found in streamContent
 	private goReading: boolean = false; // indicate when the read function can be used
 	private readonly nextInput: boolean = false; // false when the input is not complete // usefull ?
@@ -54,17 +57,17 @@ export abstract class Task extends stream.Duplex {
 	private jobsRun: number = 0; // number of jobs that are still running
 	private jobsErr: number = 0; // number of jobs that have emitted an error
 	protected rootdir: string = __dirname;
-	protected settFile: string = null; // settings file path
-	protected coreScript: string = null; // core script path
-	protected automaticClosure: boolean;
-	protected settings: {} = null; // specific to each task // usefull ?
-	protected staticTag: string = null; // tagTask : must be unique
+	protected coreScript: string = null; // path of the core script of the Task
+	protected settFile: string = null; // file path of the proper settings of the Task
+	protected settings: {} = null; // content of the settFile or other settings if the set() method is used
+	protected automaticClosure: boolean; // TODO (not implemented yet)
+	protected staticTag: string = null; // tagTask : must be unique between all the Tasks
 
 	/*
 	* MUST BE ADAPTED FOR CHILD CLASSES
 	* Initialize the task parameters with values gived by user.
 	*/
-	protected constructor (jobManager, jobProfile: {}, syncMode: boolean, options?: any) {
+	protected constructor (jobManager, jobProfile: string, syncMode: boolean, options?: any) {
 		super(options);
 		if (typeof jobManager == "undefined") throw 'ERROR : a job manager must be specified';
 		if (typeof jobProfile == "undefined") throw 'ERROR : a job profile must be specified (even null is correct)';
@@ -639,7 +642,7 @@ export abstract class Task extends stream.Duplex {
 export function readEntry (entryFile: string): stream.Readable {
     try {
         var content: string = fs.readFileSync(entryFile, 'utf8');
-        content = content.replace('\n', '\\n').replace('\r', '\\r');
+        content = content.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
         var s = new stream.Readable();
         s.push(content);
         s.push(null);

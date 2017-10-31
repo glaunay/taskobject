@@ -30,7 +30,7 @@ class Simple extends tk.Task {
         if (typeof chunk !== 'string')
             chunk = JSON.stringify(chunk);
         var results = {
-            'out': chunk
+            'input': chunk
         };
         return JSON.stringify(results);
     }

@@ -9,7 +9,7 @@ export class Simple extends tk.Task {
 	/*
 	* Initialize the task parameters.
 	*/
-	public constructor (jobManager, jobProfile: {}, syncMode: boolean, options?: any) {
+	public constructor (jobManager, jobProfile: string, syncMode: boolean, options?: any) {
 		super(jobManager, jobProfile, syncMode, options);
         this.rootdir = __dirname;
         this.settFile = this.rootdir + '/../data/settings.json';
@@ -22,7 +22,7 @@ export class Simple extends tk.Task {
     *     - modules needed
     *     - variables to export in the batch script
     */
-    protected prepareJob (inputs: {}[]): any {
+    protected prepareJob (inputs: any[]): any {
         var modules: string[] = [];
         var exportVar: {} = {};
         return super.configJob(inputs, modules, exportVar);
@@ -34,7 +34,7 @@ export class Simple extends tk.Task {
     protected prepareResults (chunk: any): string {
         if (typeof chunk !== 'string') chunk = JSON.stringify(chunk);
         var results: {} = {
-            'out' : chunk
+            'input' : chunk
         };
         return JSON.stringify(results);
     }

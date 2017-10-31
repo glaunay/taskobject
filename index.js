@@ -22,10 +22,12 @@ A child class of Task must not override methods with a "DO NOT MODIFY" indicatio
 */
 Object.defineProperty(exports, "__esModule", { value: true });
 // TODO
-// - kill method (not necessary thanks to the new jobManager with its "engines")
-// - see how to use the "null" value (when we call the pushClosing() method)
-// - init() : arguments nommés (soit un JSON soit un string)
-// - dans prepareResults() : mettre le stringify dans une autre fonction
+// - doc
+// - NPM
+// - kill() method (not necessary thanks to the new jobManager with its "engines")
+// - pushClosing() method : if @chunk receive a null value
+// - init() method : arguments nommés (soit un JSON soit un string)
+// - prepareResults() method : mettre le stringify dans une autre fonction
 const fs = require("fs");
 const events = require("events");
 const stream = require("stream");
@@ -39,11 +41,11 @@ class Task extends stream.Duplex {
     */
     constructor(jobManager, jobProfile, syncMode, options) {
         super(options);
-        this.jobManager = null; // engineLayer
-        this.jobProfile = null; // including partition, qos, uid, gid (given by jobManager)
+        this.jobManager = null; // job manager (engineLayer version)
+        this.jobProfile = null; // "arwen_express" for example (see the different config into nslurm module)
         this.syncMode = false; // define the mode : async or not (see next line)
         this.processFunc = null; // async (process) or synchronous (syncProcess) depending on the mode
-        this.streamContent = ''; // content of the stream (concatenated chunk)
+        this.streamContent = ''; // content of the stream (concatenated @chunk)
         this.jsonContent = []; // all the whole JSONs found in streamContent
         this.goReading = false; // indicate when the read function can be used
         this.nextInput = false; // false when the input is not complete // usefull ?
@@ -51,10 +53,10 @@ class Task extends stream.Duplex {
         this.jobsRun = 0; // number of jobs that are still running
         this.jobsErr = 0; // number of jobs that have emitted an error
         this.rootdir = __dirname;
-        this.settFile = null; // settings file path
-        this.coreScript = null; // core script path
-        this.settings = null; // specific to each task // usefull ?
-        this.staticTag = null; // tagTask : must be unique
+        this.coreScript = null; // path of the core script of the Task
+        this.settFile = null; // file path of the proper settings of the Task
+        this.settings = null; // content of the settFile or other settings if the set() method is used
+        this.staticTag = null; // tagTask : must be unique between all the Tasks
         if (typeof jobManager == "undefined")
             throw 'ERROR : a job manager must be specified';
         if (typeof jobProfile == "undefined")
@@ -635,7 +637,7 @@ exports.Task = Task;
 function readEntry(entryFile) {
     try {
         var content = fs.readFileSync(entryFile, 'utf8');
-        content = content.replace('\n', '\\n').replace('\r', '\\r');
+        content = content.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
         var s = new stream.Readable();
         s.push(content);
         s.push(null);
