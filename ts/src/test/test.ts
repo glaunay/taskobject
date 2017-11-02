@@ -64,7 +64,7 @@ jobManager.on('ready', function() {
 
 //////////// tests /////////////
 var simpleTest = function () {
-    var jobProfile = null; // "arwen_express" for example
+    var jobProfile = null; // "arwen_express" or "arwen_cpu" for example
     var syncMode = true;
     var entryFile = __dirname + "/entry.json";
 

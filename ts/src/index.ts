@@ -27,8 +27,6 @@ A child class of Task must not override methods with a "DO NOT MODIFY" indicatio
 // - kill() method (not necessary thanks to the new jobManager with its "engines")
 // - pushClosing() method : if @chunk receive a null value
 // - init() method : arguments nommés (soit un JSON soit un string)
-// - prepareResults() method : mettre le stringify dans une autre fonction
-
 
 
 import fs = require ('fs');
@@ -192,12 +190,12 @@ export abstract class Task extends stream.Duplex {
 	* MUST BE ADAPTED FOR CHILD CLASSES
 	* To manage the output(s)
 	*/
-	protected prepareResults (chunk: any): string {
-		if (typeof chunk !== 'string') chunk = JSON.stringify(chunk);
+	protected prepareResults (chunk: string): any {
+		var chunkJson = this.parseJson(chunk);
 		var results: {} = {
-			'out' : chunk
+			'out' : chunkJson
 		};
-    	return JSON.stringify(results);
+    	return results;
 	}
 
 	/*
@@ -382,7 +380,7 @@ export abstract class Task extends stream.Duplex {
 	            var chunk: string = '';
 	            stdout.on('data', buf => { chunk += buf.toString(); }); // (4)
 	            stdout.on('end', () => {
-	            	self.async(self.prepareResults(chunk)).on('end', results => { // (5)
+	            	self.async( JSON.stringify( self.prepareResults(chunk) ) ).on('end', results => { // (5)
 	            		self.goReading = true;
 	            		self.push(results); // pushing string = activate the "_read" method
 	            		emitter.emit('treated', results);

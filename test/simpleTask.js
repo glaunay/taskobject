@@ -1,5 +1,31 @@
 "use strict";
+/*
+***********************
+***** SIMPLE TASK *****
+***********************
+
+* GOAL *
+A simple example of a child Task, that could be chained by .pipe() or .superPipe()
+
+* INPUT *
+Coming from a readable stream, the input must be like :
+{
+    "input" : "pdb into string format"
+}
+WARNING : "input" is an obligatory key.
+(see the ./test/entry.json for an example)
+
+* OUTPUT *
+The output is a literal with this form :
+{
+    "input" : '{\n"myData line 1" : "toto"\n}\n'
+}
+*/
 Object.defineProperty(exports, "__esModule", { value: true });
+// TODO
+// - doc
+// - git
+// - npm
 const tk = require("../index");
 var b_test = false;
 class Simple extends tk.Task {
@@ -27,12 +53,10 @@ class Simple extends tk.Task {
     * To manage the output(s)
     */
     prepareResults(chunk) {
-        if (typeof chunk !== 'string')
-            chunk = JSON.stringify(chunk);
         var results = {
             'input': chunk
         };
-        return JSON.stringify(results);
+        return results;
     }
 }
 exports.Simple = Simple;

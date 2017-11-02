@@ -27,7 +27,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // - kill() method (not necessary thanks to the new jobManager with its "engines")
 // - pushClosing() method : if @chunk receive a null value
 // - init() method : arguments nommés (soit un JSON soit un string)
-// - prepareResults() method : mettre le stringify dans une autre fonction
 const fs = require("fs");
 const events = require("events");
 const stream = require("stream");
@@ -196,12 +195,11 @@ class Task extends stream.Duplex {
     * To manage the output(s)
     */
     prepareResults(chunk) {
-        if (typeof chunk !== 'string')
-            chunk = JSON.stringify(chunk);
+        var chunkJson = this.parseJson(chunk);
         var results = {
-            'out': chunk
+            'out': chunkJson
         };
-        return JSON.stringify(results);
+        return results;
     }
     /*
     * DO NOT MODIFY
@@ -384,7 +382,7 @@ class Task extends stream.Duplex {
             var chunk = '';
             stdout.on('data', buf => { chunk += buf.toString(); }); // (4)
             stdout.on('end', () => {
-                self.async(self.prepareResults(chunk)).on('end', results => {
+                self.async(JSON.stringify(self.prepareResults(chunk))).on('end', results => {
                     self.goReading = true;
                     self.push(results); // pushing string = activate the "_read" method
                     emitter.emit('treated', results);
