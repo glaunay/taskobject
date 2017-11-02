@@ -21,13 +21,6 @@ A child class of Task must not override methods with a "DO NOT MODIFY" indicatio
 
 */
 Object.defineProperty(exports, "__esModule", { value: true });
-// TODO
-// - doc
-// - NPM
-// - kill() method (not necessary thanks to the new jobManager with its "engines")
-// - pushClosing() method : if @chunk receive a null value
-// - init() method : arguments nommés (soit un JSON soit un string)
-const fs = require("fs");
 const events = require("events");
 const stream = require("stream");
 const jsonfile = require("jsonfile");
@@ -239,10 +232,6 @@ class Task extends stream.Duplex {
         while (detectExtremities(toParse)) {
             counter = 0, jsonStart = -1, jsonEnd = -1;
             for (var i = 0; i < toParse.length; i++) {
-                if (b_test) {
-                    console.log("i = " + i + " ///// to parse [i] = " + toParse[i] + " ///// counter = " + counter);
-                    console.log("jsonStart = " + jsonStart + " ///// jsonEnd = " + jsonEnd);
-                }
                 if (toParse[i].match(open)) {
                     if (counter === 0)
                         jsonStart = i; // if a JSON is beginning
@@ -627,24 +616,3 @@ class Task extends stream.Duplex {
     }
 }
 exports.Task = Task;
-/*
-* DO NOT MODIFY
-* Read an @entryFile, replace the real "\n" and "\r" by written "\n" and "\r" (visible into the string).
-* Then return the content using a readable stream.
-*/
-function readEntry(entryFile) {
-    try {
-        var content = fs.readFileSync(entryFile, 'utf8');
-        content = content.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
-        var s = new stream.Readable();
-        s.push(content);
-        s.push(null);
-        return s;
-    }
-    catch (err) {
-        console.log('ERROR while opening the file ' + entryFile + ' :');
-        console.log(err);
-        return null;
-    }
-}
-exports.readEntry = readEntry;

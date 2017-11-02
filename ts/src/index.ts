@@ -234,10 +234,6 @@ export abstract class Task extends stream.Duplex {
 		while (detectExtremities(toParse)) {
 			counter = 0, jsonStart = -1, jsonEnd = -1;
 			for (var i = 0; i < toParse.length; i++) { // for each character in @toParse
-				if (b_test) {
-					console.log("i = " + i + " ///// to parse [i] = " + toParse[i] + " ///// counter = " + counter);
-					console.log("jsonStart = " + jsonStart + " ///// jsonEnd = " + jsonEnd)
-				}
 				if (toParse[i].match(open)) {
 					if (counter === 0) jsonStart = i; // if a JSON is beginning
 					counter ++;
@@ -630,25 +626,5 @@ export abstract class Task extends stream.Duplex {
 		setTimeout(() => { emitter.emit('end', callback); }, 10);
 		return emitter;
 	}
-}
-
-/*
-* DO NOT MODIFY
-* Read an @entryFile, replace the real "\n" and "\r" by written "\n" and "\r" (visible into the string).
-* Then return the content using a readable stream.
-*/
-export function readEntry (entryFile: string): stream.Readable {
-    try {
-        var content: string = fs.readFileSync(entryFile, 'utf8');
-        content = content.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
-        var s = new stream.Readable();
-        s.push(content);
-        s.push(null);
-        return s;
-    } catch (err) {
-        console.log('ERROR while opening the file ' + entryFile + ' :');
-        console.log(err);
-        return null;
-    }
 }
 

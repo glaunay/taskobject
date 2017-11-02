@@ -3,16 +3,33 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 /*
 TO RUN :
-node /path/to/this/script/test.js -cache /path/to/cache/tmp/ -conf /path/to/nslurm/config/arwenConf.json
+node /path/to/this/script/test.js -cache /path/to/cache/tmp/ -conf /path/to/nslurm/config/arwenConf.json -file /path/to/your/file.txt
 */
 const sim = require("./simpleTask");
-const tk = require("../index");
-const jobManager = require("nslurm"); // engineLayer branch of course
+const jobManager = require("nslurm"); // engineLayer branch
 const localIP = require("my-local-ip");
 const jsonfile = require("jsonfile");
+const fs = require("fs");
+const stream = require("stream");
 var tcp = localIP(), port = "2220";
-var engineType = null, cacheDir = null, bean = null;
+var engineType = null, cacheDir = null, bean = null, entryFile = null;
 var optCacheDir = [];
+var fileToStream = function (entryFile) {
+    try {
+        var content = fs.readFileSync(entryFile, 'utf8');
+        content = content.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+        var s = new stream.Readable();
+        s.push('{ "input" : "');
+        s.push(content);
+        s.push('"}');
+        s.push(null);
+        return s;
+    }
+    catch (err) {
+        throw 'ERROR while opening the file ' + entryFile + ' :' + err;
+    }
+};
+///////////// arguments /////////////
 process.argv.forEach(function (val, index, array) {
     if (val === '-cache') {
         if (!array[index + 1])
@@ -30,6 +47,11 @@ process.argv.forEach(function (val, index, array) {
             console.log(err);
         }
     }
+    if (val === '-file') {
+        if (!array[index + 1])
+            throw 'usage : ';
+        entryFile = array[index + 1];
+    }
 });
 if (!cacheDir)
     throw 'No cacheDir specified !';
@@ -37,10 +59,13 @@ if (!cacheDir)
 if (!bean)
     throw 'No config file specified !';
 // example BEAN = /home/mgarnier/taskObject_devTests/node_modules/nslurm/config/arwenConf.json
+if (!entryFile)
+    throw 'No entry file specified !';
+// example ENTRYFILE = ./test/test.txt
 engineType = engineType ? engineType : bean.engineType;
 bean.cacheDir = cacheDir ? cacheDir : bean.cacheDir;
-console.log("Config file content:\n");
-console.dir(bean);
+// console.log("Config file content:\n");
+// console.dir(bean);
 optCacheDir.push(bean.cacheDir);
 ///////////// jobManager /////////////
 //jobManager.debugOn();
@@ -61,13 +86,13 @@ jobManager.on('ready', function () {
 var simpleTest = function () {
     var jobProfile = null; // "arwen_express" or "arwen_cpu" for example
     var syncMode = true;
-    var entryFile = __dirname + "/entry.json";
     var a = new sim.Simple(jobManager, jobProfile, syncMode);
     //a.testMode(true);
-    var b = new sim.Simple(jobManager, jobProfile, syncMode); // for reading tests
+    var b = new sim.Simple(jobManager, jobProfile, syncMode); // for superPipe() tests
+    //b.testMode(true);
     // pipeline
     //process.stdin.pipe(a); // {"input" : "toto"} for example
-    tk.readEntry(entryFile).pipe(a)
+    fileToStream(entryFile).pipe(a)
         .on('processed', s => {
         console.log('**** data');
     })
