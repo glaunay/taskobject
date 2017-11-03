@@ -1,8 +1,8 @@
 {
-  "name": "task object",
+  "name": "taskObject",
   "version": "0.1.0",
   "author": "Mélanie Garnier",
-  "date" : "last modification : 2017-10-17",
+  "date" : "last modification : 2017-11-03",
   "description": "A class to define tasks",
   "dependencies": {
     "JSON": "^1.0.0",

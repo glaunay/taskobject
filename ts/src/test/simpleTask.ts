@@ -13,7 +13,6 @@ Coming from a readable stream, the input must be like :
     "input" : "pdb into string format"
 }
 WARNING : "input" is an obligatory key.
-(see the ./test/entry.json for an example)
 
 * OUTPUT *
 The output is a literal with this form :

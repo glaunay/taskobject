@@ -47,7 +47,8 @@ class Task extends stream.Duplex {
         this.rootdir = __dirname;
         this.coreScript = null; // path of the core script of the Task
         this.settFile = null; // file path of the proper settings of the Task
-        this.settings = null; // content of the settFile or other settings if the set() method is used
+        this.settings = {}; // content of the settFile or other settings if the set() method is used
+        this.automaticClosure = false; // TODO (not implemented yet)
         this.staticTag = null; // tagTask : must be unique between all the Tasks
         if (typeof jobManager == "undefined")
             throw 'ERROR : a job manager must be specified';
@@ -89,16 +90,10 @@ class Task extends stream.Duplex {
                 userData = data;
             if ('coreScript' in userData)
                 this.coreScript = this.rootdir + '/' + userData.coreScript;
-            else
-                this.coreScript = null;
             if ('automaticClosure' in userData)
                 this.automaticClosure = userData.automaticClosure;
-            else
-                this.automaticClosure = false;
             if ('settings' in userData)
                 this.settings = userData.settings;
-            else
-                this.settings = {};
         }
     }
     /*

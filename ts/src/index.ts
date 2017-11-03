@@ -57,8 +57,8 @@ export abstract class Task extends stream.Duplex {
 	protected rootdir: string = __dirname;
 	protected coreScript: string = null; // path of the core script of the Task
 	protected settFile: string = null; // file path of the proper settings of the Task
-	protected settings: {} = null; // content of the settFile or other settings if the set() method is used
-	protected automaticClosure: boolean; // TODO (not implemented yet)
+	protected settings: {} = {}; // content of the settFile or other settings if the set() method is used
+	protected automaticClosure: boolean = false; // TODO (not implemented yet)
 	protected staticTag: string = null; // tagTask : must be unique between all the Tasks
 
 	/*
@@ -99,11 +99,8 @@ export abstract class Task extends stream.Duplex {
 			if (typeof data === "string") userData = this.parseJsonFile(data);
 			else userData = data;
 			if ('coreScript' in userData) this.coreScript = this.rootdir+ '/' + userData.coreScript;
-			else this.coreScript = null;
 			if ('automaticClosure' in userData) this.automaticClosure = userData.automaticClosure;
-			else this.automaticClosure = false;
 			if ('settings' in userData) this.settings = userData.settings;
-			else this.settings = {};
 		}
 	}
 
