@@ -2,7 +2,9 @@
 
 /*
 TO RUN :
-node /path/to/this/script/test.js -cache /path/to/cache/tmp/ -conf /path/to/nslurm/config/arwenConf.json -file /path/to/your/file.txt
+node /path/to/this/script/test.js -cache /path/to/cache/tmp/
+                                -conf /path/to/nslurm/config/arwenConf.json
+                                -file /path/to/your/file.txt
 */
 
 import sim = require ('./simpleTask');
@@ -93,8 +95,8 @@ jobManager.on('ready', function() {
 
 //////////// tests /////////////
 var simpleTest = function () {
-    var jobProfile = null; // "arwen_express" or "arwen_cpu" for example
-    var syncMode = true;
+    var jobProfile: string = null; // "arwen_express" or "arwen_cpu" for example
+    var syncMode: boolean = true;
 
     var a = new sim.Simple (jobManager, jobProfile, syncMode);
     //a.testMode(true);

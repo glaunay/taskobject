@@ -47,14 +47,10 @@ export class Simple extends tk.Task {
 	}
 
     /*
-    * Here are defined all the parameters specific to the task :
-    *     - modules needed
-    *     - variables to export in the batch script
+    * Here manage the input(s)
     */
     protected prepareJob (inputs: any[]): any {
-        var modules: string[] = [];
-        var exportVar: {} = {};
-        return super.configJob(inputs, modules, exportVar);
+        return super.configJob(inputs);
     }
 
     /*

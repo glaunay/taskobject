@@ -45,7 +45,10 @@ class Task extends stream.Duplex {
         this.jobsRun = 0; // number of jobs that are still running
         this.jobsErr = 0; // number of jobs that have emitted an error
         this.rootdir = __dirname;
+        this.staticInputs = null; // to keep a probe PDB for example, given by the options into the constructor
         this.coreScript = null; // path of the core script of the Task
+        this.modules = []; // modules needed in the coreScript to run the Task
+        this.exportVar = {}; // variables to export, needed in the coreScript of the Task
         this.settFile = null; // file path of the proper settings of the Task
         this.settings = {}; // content of the settFile or other settings if the set() method is used
         this.automaticClosure = false; // TODO (not implemented yet)
@@ -58,11 +61,24 @@ class Task extends stream.Duplex {
             throw 'ERROR : a mode must be specified (sync = true // async = false)';
         this.jobManager = jobManager;
         this.jobProfile = jobProfile;
+        // syncMode
         this.syncMode = syncMode;
         if (this.syncMode === true)
             this.processFunc = this.syncProcess;
         else
             this.processFunc = this.process;
+        // options
+        if (typeof options !== 'undefined') {
+            if (options.hasOwnProperty('staticInputs')) {
+                this.staticInputs = options.staticInputs;
+            }
+            if (options.hasOwnProperty('modules')) {
+                this.modules = options.modules;
+            }
+            if (options.hasOwnProperty('exportVar')) {
+                this.exportVar = options.exportVar;
+            }
+        }
     }
     /*
     * DO NOT MODIFY
@@ -156,27 +172,23 @@ class Task extends stream.Duplex {
     * 	(2) variables to export in the coreScript
     *	(3) the inputs : stream or string or path in an array of JSONs
     */
-    configJob(inputs, modules, exportVar) {
+    configJob(inputs) {
         var self = this;
         var jobOpt = {
             'tagTask': self.staticTag,
             'script': self.coreScript,
-            'modules': modules,
-            'exportVar': exportVar,
+            'modules': self.modules,
+            'exportVar': self.exportVar,
             'inputs': self.concatJson(inputs) // (3)
         };
         return jobOpt;
     }
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
-    * Here are defined all the parameters specific to the task :
-    * 	- modules needed
-    * 	- variables to export in the batch script
+    * Here manage the input(s)
     */
     prepareJob(inputs) {
-        var modules = [];
-        var exportVar = {};
-        return this.configJob(inputs, modules, exportVar);
+        return this.configJob(inputs);
     }
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
@@ -238,7 +250,10 @@ class Task extends stream.Duplex {
                         jsonEnd = i;
                         // prepare the JSON object
                         sub_toParse = toParse.substring(jsonStart, jsonEnd + 1);
-                        result.jsonTab.push(this.parseJson(sub_toParse));
+                        var myJson = this.parseJson(sub_toParse);
+                        if (myJson === null)
+                            throw "WARNING : make sure your data contains well writing \"\\n\" !";
+                        result.jsonTab.push(myJson);
                         toParse = toParse.replace(sub_toParse, ''); // remove the part of the JSON already parsed
                         break;
                     }
@@ -404,7 +419,7 @@ class Task extends stream.Duplex {
             }
             if (b_test)
                 console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
-            var jsonValue = [jsonVal]; // to adapt to superProcess modifications
+            var jsonValue = [jsonVal]; // to adapt to syncProcess modifications
             self.run(jsonValue) // (4)
                 .on('treated', (results) => {
                 self.shift_jsonContent(streamUsed); // (5)
@@ -597,7 +612,7 @@ class Task extends stream.Duplex {
         }
         catch (err) {
             console.log('ERROR in parseJson() : ' + err);
-            throw 'WARNING : make sure your data contains well writing \"\\n\" !';
+            return null;
         }
     }
     /*

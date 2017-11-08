@@ -24,6 +24,8 @@ A child class of Task must not override methods with a "DO NOT MODIFY" indicatio
 // TODO
 // - doc
 // - NPM
+// - UUID in run() method
+// - staticInputs like into HexTask
 // - kill() method (not necessary thanks to the new jobManager with its "engines")
 // - pushClosing() method : if @chunk receive a null value
 // - init() method : arguments nommés (soit un JSON soit un string)
@@ -55,7 +57,10 @@ export abstract class Task extends stream.Duplex {
 	private jobsRun: number = 0; // number of jobs that are still running
 	private jobsErr: number = 0; // number of jobs that have emitted an error
 	protected rootdir: string = __dirname;
+	protected readonly staticInputs: any = null; // to keep a probe PDB for example, given by the options into the constructor
 	protected coreScript: string = null; // path of the core script of the Task
+	protected readonly modules: string[] = []; // modules needed in the coreScript to run the Task
+	protected readonly exportVar: {} = {}; // variables to export, needed in the coreScript of the Task
 	protected settFile: string = null; // file path of the proper settings of the Task
 	protected settings: {} = {}; // content of the settFile or other settings if the set() method is used
 	protected automaticClosure: boolean = false; // TODO (not implemented yet)
@@ -72,9 +77,22 @@ export abstract class Task extends stream.Duplex {
 		if (typeof syncMode == "undefined") throw 'ERROR : a mode must be specified (sync = true // async = false)';
 		this.jobManager = jobManager;
 		this.jobProfile = jobProfile;
+		// syncMode
 		this.syncMode = syncMode;
 		if (this.syncMode === true) this.processFunc = this.syncProcess;
 		else this.processFunc = this.process;
+		// options
+		if (typeof options !== 'undefined') {
+			if (options.hasOwnProperty('staticInputs')) {
+            	this.staticInputs = options.staticInputs;
+            }
+            if (options.hasOwnProperty('modules')) {
+            	this.modules = options.modules;
+            }
+            if (options.hasOwnProperty('exportVar')) {
+            	this.exportVar = options.exportVar;
+            }
+        }
 	}
 
 	/*
@@ -159,13 +177,13 @@ export abstract class Task extends stream.Duplex {
 	* 	(2) variables to export in the coreScript
 	*	(3) the inputs : stream or string or path in an array of JSONs
 	*/
-	protected configJob (inputs: {}[], modules: string[], exportVar: {}): Object {
+	protected configJob (inputs: {}[]): Object {
 		var self = this;
 	    var jobOpt: {} = {
 	    	'tagTask' : <string> self.staticTag,
 	    	'script' : <string> self.coreScript,
-	        'modules' : <[string]> modules, // (1)
-	        'exportVar' : <{}> exportVar, // (2)
+	        'modules' : <[string]> self.modules, // (1)
+	        'exportVar' : <{}> self.exportVar, // (2)
 	        'inputs' : <{}> self.concatJson(inputs) // (3)
 	    };
 	    return jobOpt;
@@ -173,14 +191,10 @@ export abstract class Task extends stream.Duplex {
 
 	/*
 	* MUST BE ADAPTED FOR CHILD CLASSES
-	* Here are defined all the parameters specific to the task :
-	* 	- modules needed
-	* 	- variables to export in the batch script
+	* Here manage the input(s)
 	*/
-	protected prepareJob (inputs: {}[]): any {
-		var modules: string[] = [];
-		var exportVar: {} = {};
-		return this.configJob(inputs, modules, exportVar);
+	protected prepareJob (inputs: any[]): any {
+		return this.configJob(inputs);
 	}
 
 	/*
@@ -242,7 +256,9 @@ export abstract class Task extends stream.Duplex {
 						jsonEnd = i;
 						// prepare the JSON object
 						sub_toParse = toParse.substring(jsonStart, jsonEnd + 1);
-						result.jsonTab.push(this.parseJson(sub_toParse));
+						var myJson = this.parseJson(sub_toParse);
+						if (myJson === null) throw "WARNING : make sure your data contains well writing \"\\n\" !";
+						result.jsonTab.push(myJson);
 
 						toParse = toParse.replace(sub_toParse, ''); // remove the part of the JSON already parsed
 						break;
@@ -412,7 +428,7 @@ export abstract class Task extends stream.Duplex {
 				//console.log(this);
 			}
 			if (b_test) console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
-			var jsonValue = [jsonVal]; // to adapt to superProcess modifications
+			var jsonValue = [jsonVal]; // to adapt to syncProcess modifications
 			self.run(jsonValue) // (4)
 			.on('treated', (results) => {
 				self.shift_jsonContent(streamUsed); // (5)
@@ -610,7 +626,7 @@ export abstract class Task extends stream.Duplex {
 		try { return JSON.parse(data) }
 		catch (err) {
 			console.log('ERROR in parseJson() : ' + err);
-			throw 'WARNING : make sure your data contains well writing \"\\n\" !';
+			return null;
 		}
 	}
 

@@ -39,14 +39,10 @@ class Simple extends tk.Task {
         this.staticTag = 'simple';
     }
     /*
-    * Here are defined all the parameters specific to the task :
-    *     - modules needed
-    *     - variables to export in the batch script
+    * Here manage the input(s)
     */
     prepareJob(inputs) {
-        var modules = [];
-        var exportVar = {};
-        return super.configJob(inputs, modules, exportVar);
+        return super.configJob(inputs);
     }
     /*
     * To manage the output(s)
