@@ -6,7 +6,7 @@
   "description": "A class to define tasks",
   "dependencies": {
     "JSON": "^1.0.0",
-    "jsonfile": "^2.2.3",
+    "jsonfile": "^3.0.0",
     "my-local-ip": "^1.0.0",
     "nslurm": "^0.8.0"
   }

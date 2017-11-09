@@ -25,7 +25,6 @@ A child class of Task must not override methods with a "DO NOT MODIFY" indicatio
 // - doc
 // - NPM
 // - UUID in run() method
-// - staticInputs like into HexTask
 // - kill() method (not necessary thanks to the new jobManager with its "engines")
 // - pushClosing() method : if @chunk receive a null value
 // - init() method : arguments nommés (soit un JSON soit un string)
@@ -370,6 +369,7 @@ export abstract class Task extends stream.Duplex {
 	private run (jsonValue: {}[]): events.EventEmitter {
 		var emitter = new events.EventEmitter();
 		var self = this;
+		var uuid: string = null;
 		// if (jsonValue === 'null' || jsonValue === 'null\n') { // (1)
 		// 	self.pushClosing();
 		// } else {
@@ -377,6 +377,10 @@ export abstract class Task extends stream.Duplex {
 			if (b_test) {
 				console.log("jobOpt :")
 				console.log(jobOpt);
+			}
+			if (jobOpt.inputs.hasOwnProperty('uuid')) {
+				uuid = jobOpt.inputs.uuid;
+				delete jobOpt.inputs['uuid'];
 			}
 			var j = self.jobManager.push(self.jobProfile, jobOpt); // (3)
 			j.on('completed', (stdout, stderr, jobObject) => {
@@ -389,7 +393,11 @@ export abstract class Task extends stream.Duplex {
 	            var chunk: string = '';
 	            stdout.on('data', buf => { chunk += buf.toString(); }); // (4)
 	            stdout.on('end', () => {
-	            	self.async( JSON.stringify( self.prepareResults(chunk) ) ).on('end', results => { // (5)
+	            	self.async(function () {
+	            		var res = self.prepareResults(chunk);
+	            		if (uuid !== null) res['uuid'] = uuid;
+	            		return JSON.stringify(res);
+	            	}).on('end', results => { // (5)
 	            		self.goReading = true;
 	            		self.push(results); // pushing string = activate the "_read" method
 	            		emitter.emit('treated', results);
@@ -635,8 +643,9 @@ export abstract class Task extends stream.Duplex {
 	* Make a @callback asynchronous
 	*/
 	protected async (callback: any): events.EventEmitter {
+		var result = callback();
 		var emitter = new events.EventEmitter;
-		setTimeout(() => { emitter.emit('end', callback); }, 10);
+		setTimeout(() => { emitter.emit('end', result); }, 10);
 		return emitter;
 	}
 }

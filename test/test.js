@@ -3,7 +3,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 /*
 TO RUN :
-node /path/to/this/script/test.js -cache /path/to/cache/tmp/ -conf /path/to/nslurm/config/arwenConf.json -file /path/to/your/file.txt
+node /path/to/this/script/test.js -cache /path/to/cache/tmp/
+                                -conf /path/to/nslurm/config/arwenConf.json
+                                -file /path/to/your/file.txt
 */
 const sim = require("./simpleTask");
 const jobManager = require("nslurm"); // engineLayer branch
@@ -12,6 +14,7 @@ const jsonfile = require("jsonfile");
 const fs = require("fs");
 const stream = require("stream");
 var tcp = localIP(), port = "2220";
+var uuid = "67593282-c4a4-4fd0-8861-37d8548ce236";
 var engineType = null, cacheDir = null, bean = null, entryFile = null;
 var optCacheDir = [];
 var fileToStream = function (entryFile) {
@@ -21,6 +24,8 @@ var fileToStream = function (entryFile) {
         var s = new stream.Readable();
         s.push('{ "input" : "');
         s.push(content);
+        s.push('", "uuid" : "');
+        s.push(uuid);
         s.push('"}');
         s.push(null);
         return s;

@@ -16,6 +16,7 @@ import stream = require ('stream');
 
 var tcp = localIP(),
     port: string = "2220";
+var uuid: string = "67593282-c4a4-4fd0-8861-37d8548ce236";
 var engineType: string = null,
     cacheDir: string = null,
     bean: any = null,
@@ -30,6 +31,8 @@ var fileToStream = function (entryFile: string): stream.Readable {
         var s = new stream.Readable();
         s.push('{ "input" : "');
         s.push(content);
+        s.push('", "uuid" : "');
+        s.push(uuid);
         s.push('"}');
         s.push(null);
         return s;

@@ -362,6 +362,7 @@ class Task extends stream.Duplex {
     run(jsonValue) {
         var emitter = new events.EventEmitter();
         var self = this;
+        var uuid = null;
         // if (jsonValue === 'null' || jsonValue === 'null\n') { // (1)
         // 	self.pushClosing();
         // } else {
@@ -369,6 +370,10 @@ class Task extends stream.Duplex {
         if (b_test) {
             console.log("jobOpt :");
             console.log(jobOpt);
+        }
+        if (jobOpt.inputs.hasOwnProperty('uuid')) {
+            uuid = jobOpt.inputs.uuid;
+            delete jobOpt.inputs['uuid'];
         }
         var j = self.jobManager.push(self.jobProfile, jobOpt); // (3)
         j.on('completed', (stdout, stderr, jobObject) => {
@@ -381,7 +386,12 @@ class Task extends stream.Duplex {
             var chunk = '';
             stdout.on('data', buf => { chunk += buf.toString(); }); // (4)
             stdout.on('end', () => {
-                self.async(JSON.stringify(self.prepareResults(chunk))).on('end', results => {
+                self.async(function () {
+                    var res = self.prepareResults(chunk);
+                    if (uuid !== null)
+                        res['uuid'] = uuid;
+                    return JSON.stringify(res);
+                }).on('end', results => {
                     self.goReading = true;
                     self.push(results); // pushing string = activate the "_read" method
                     emitter.emit('treated', results);
@@ -620,8 +630,9 @@ class Task extends stream.Duplex {
     * Make a @callback asynchronous
     */
     async(callback) {
+        var result = callback();
         var emitter = new events.EventEmitter;
-        setTimeout(() => { emitter.emit('end', callback); }, 10);
+        setTimeout(() => { emitter.emit('end', result); }, 10);
         return emitter;
     }
 }
