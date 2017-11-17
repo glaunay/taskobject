@@ -109,17 +109,17 @@ var simpleTest = function () {
     // pipeline
     //process.stdin.pipe(a); // {"input" : "toto"} for example
     fileToStream(entryFile).pipe(a)
-    .on('processed', s => {
+    .on('processed', results => {
     	console.log('**** data');
     })
-    .on('err', s => {
+    .on('err', (err, jobID) => {
     	console.log('**** ERROR');
     })
     .superPipe(b)
-    .on('processed', s => {
+    .on('processed', results => {
         console.log('**** data 22222');
     })
-    .on('err', s => {
+    .on('err', (err, jobID) => {
         console.log('**** ERROR 22222');
     })
     .pipe(process.stdout);

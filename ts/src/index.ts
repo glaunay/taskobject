@@ -39,11 +39,8 @@ import JSON = require ('JSON');
 
 declare var __dirname;
 
-var b_test: boolean = false; // test mode
-
-
-
 export abstract class Task extends stream.Duplex {
+	protected b_test: boolean = false; // test mode
 	private readonly jobManager: any = null; // job manager (engineLayer version)
 	private readonly jobProfile: string = null; // "arwen_express" for example (see the different config into nslurm module)
 	private readonly syncMode: boolean = false; // define the mode : async or not (see next line)
@@ -99,9 +96,9 @@ export abstract class Task extends stream.Duplex {
 	* To (in)activate the test mode : (in)activate all the console.log/dir
 	*/
 	public testMode (bool: boolean): void {
-		b_test = bool;
-		if (b_test) console.log('NEWS : Task test mode is activated');
-		else console.log('NEWS : Task test mode is off')
+		this.b_test = bool;
+		if (this.b_test) console.log('NEWS : Task test mode is activated for task ' + this.staticTag);
+		else console.log('NEWS : Task test mode is off for task ' + this.staticTag);
 	}
 
 	/*
@@ -284,7 +281,7 @@ export abstract class Task extends stream.Duplex {
 		var numOfRun: number = -1;
 		for (var i in self.slotArray) {
 			var slot_i = self.slotArray[i];
-			if (b_test) {
+			if (self.b_test) {
 				console.log("i : " + i);
 				console.log("slotArray[i] : " + slot_i);
 			}
@@ -293,10 +290,10 @@ export abstract class Task extends stream.Duplex {
 			if (numOfRun === -1) numOfRun = slot_i.jsonContent.length;
 			if (slot_i.jsonContent.length < numOfRun) numOfRun = slot_i.jsonContent.length;
 		}
-		if (b_test) console.log("numOfRun : " + numOfRun);
+		if (self.b_test) console.log("numOfRun : " + numOfRun);
 
 		for (var j = 0; j < numOfRun; j ++) { // not more than the length of the smallest jsonContent
-			if (b_test) {
+			if (self.b_test) {
 				console.log("%%%%%%%%%%%%% here synchronous process");
 				console.log("j : " + j);
 			}
@@ -307,7 +304,7 @@ export abstract class Task extends stream.Duplex {
 			// for tests
 			//inputsTab = [ { "inputFile": '{\n"myData line 1" : "titi"\n}\n' }, { "inputFile2": '{\n"myData line 1" : "tata"\n}\n' } ]
 			// end of tests
-			if (b_test) console.log(inputsTab);
+			if (self.b_test) console.log(inputsTab);
 			self.run(inputsTab)
 			.on('treated', (results) => {
 				self.applyOnArray(self.shift_jsonContent, self.slotArray);
@@ -327,12 +324,12 @@ export abstract class Task extends stream.Duplex {
 	private feed_streamContent (chunk: any, aStream?: any): void {
 		if (typeof chunk == "undefined") throw 'ERROR : Chunk is ' + chunk;
 		if (Buffer.isBuffer(chunk)) chunk = chunk.toString(); // chunk can be either string or buffer but we need a string
-		
+
 		var self = this;
 		var streamUsed = typeof aStream != "undefined" ? aStream : self;
 
 		streamUsed.streamContent += chunk;
-		if (b_test) {
+		if (self.b_test) {
 			console.log('streamContent :');
 			console.log(streamUsed.streamContent);
 		}
@@ -347,12 +344,12 @@ export abstract class Task extends stream.Duplex {
 		var streamUsed = typeof aStream != "undefined" ? aStream : self;
 
 		var results = this.findJson(streamUsed.streamContent); // search for JSON
-		if (b_test) console.log(results);
+		if (self.b_test) console.log(results);
 		if (results.jsonTab.length < 1) return; // if there is no JSON at all, bye bye
 		streamUsed.jsonContent = streamUsed.jsonContent.concat(results.jsonTab); // take all the JSON detected ...
 		streamUsed.streamContent = results.rest; // ... and keep the rest into streamContent
 		
-		if (b_test) {
+		if (self.b_test) {
 			console.log('jsonContent :');
 			console.dir(streamUsed.jsonContent);
 		}
@@ -374,13 +371,13 @@ export abstract class Task extends stream.Duplex {
 		// 	self.pushClosing();
 		// } else {
 			var jobOpt: any = self.prepareJob(jsonValue); // (2) // jsonValue = array of JSONs
-			if (b_test) {
-				console.log("jobOpt :")
-				console.log(jobOpt);
-			}
 			if (jobOpt.inputs.hasOwnProperty('uuid')) {
 				uuid = jobOpt.inputs.uuid;
 				delete jobOpt.inputs['uuid'];
+			}
+			if (self.b_test) {
+				console.log("jobOpt :")
+				console.log(jobOpt);
 			}
 			var j = self.jobManager.push(self.jobProfile, jobOpt); // (3)
 			j.on('completed', (stdout, stderr, jobObject) => {
@@ -396,10 +393,10 @@ export abstract class Task extends stream.Duplex {
 	            	self.async(function () {
 	            		var res = self.prepareResults(chunk);
 	            		if (uuid !== null) res['uuid'] = uuid;
-	            		return JSON.stringify(res);
+	            		return res;
 	            	}).on('end', results => { // (5)
 	            		self.goReading = true;
-	            		self.push(results); // pushing string = activate the "_read" method
+	            		self.push(JSON.stringify(results)); // pushing string = activate the "_read" method
 	            		emitter.emit('treated', results);
 	            	});
 	            });
@@ -429,21 +426,21 @@ export abstract class Task extends stream.Duplex {
 		this.feed_jsonContent(streamUsed); // (2)
 		
 		streamUsed.jsonContent.forEach((jsonVal, i, array) => { // (3)
-			if (b_test) console.log("%%%%%%%%%%%% hello i am processing asynchronous");
+			if (self.b_test) console.log("%%%%%%%%%%%% hello i am processing asynchronous");
 			if (self.syncMode === true) {
 				console.log("WARNING : ASYNC process method is running for an object configured in SYNC mode");
 				console.log("WARNING : (due to the used of write or pipe method)");
 				//console.log(this);
 			}
-			if (b_test) console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
+			if (self.b_test) console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
 			var jsonValue = [jsonVal]; // to adapt to syncProcess modifications
 			self.run(jsonValue) // (4)
 			.on('treated', (results) => {
 				self.shift_jsonContent(streamUsed); // (5)
-				emitter.emit('processed');
+				emitter.emit('processed', results);
 			})
-			.on('err', (err) => {
-				emitter.emit('error');
+			.on('err', (err, jobID) => {
+				emitter.emit('error', err, jobID);
 			});
 		});
 		return emitter;
@@ -454,16 +451,18 @@ export abstract class Task extends stream.Duplex {
 	* Necessary to use anotherTask.pipe(task)
 	*/
 	public _write (chunk: any, encoding?: string, callback?: any): Task {
-		if (b_test) console.log('>>>>> write');
-		this.process(chunk) // obligatory asynchronous when using a anotherTask.pipe(this)
-		.on('processed', s => {
-			this.emit('processed', s);
+		var self = this;
+		if (self.b_test) console.log(self.staticTag + ' >>>>> write');
+
+		self.process(chunk) // obligatory asynchronous when using a anotherTask.pipe(this)
+		.on('processed', results => {
+			self.emit('processed', results);
 		})
-		.on('err', s => {
-			this.emit('err', s);
+		.on('err', (err, jobID) => {
+			self.emit('err', err, jobID);
 		});
 		callback();
-		return this;
+		return self;
 	}
 
 
@@ -472,9 +471,9 @@ export abstract class Task extends stream.Duplex {
 	* Necessary to use task.pipe(anotherTask)
 	*/
 	public _read (size?: number): any {
-		if (b_test) console.log('>>>>> read');
+		if (this.b_test) console.log('>>>>> read');
 		if (this.goReading) {
-			if (b_test) console.log('>>>>> read: this.goReading is F');
+			if (this.b_test) console.log('>>>>> read: this.goReading is F');
             this.goReading = false;
         }
 	}
@@ -509,7 +508,7 @@ export abstract class Task extends stream.Duplex {
 		    	this.jsonContent = [];
 		    }
 		    _write (chunk: any, encoding?: string, callback?: any): void {
-		    	if (b_test) {
+		    	if (self.b_test) {
 			    	console.log("processFunc = ");
 			    	console.log(self.processFunc);
 			    }
@@ -557,7 +556,7 @@ export abstract class Task extends stream.Duplex {
 	        emitter.emit('errSqueue');
 	    });
 
-	    if (b_test) console.log(emitter);
+	    if (this.b_test) console.log(emitter);
 	    return emitter;
 	}
 
@@ -597,7 +596,7 @@ export abstract class Task extends stream.Duplex {
 	    		newJson[key] = jsonTab[i][key];
 	    	}
 	    }
-	    if (b_test) {
+	    if (this.b_test) {
 		    console.log("newjson :");
 		    console.log(newJson);
 		}

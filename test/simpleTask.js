@@ -26,7 +26,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // - git
 // - npm
 const tk = require("../index");
-var b_test = false;
 class Simple extends tk.Task {
     /*
     * Initialize the task parameters.

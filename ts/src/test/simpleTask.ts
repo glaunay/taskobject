@@ -32,8 +32,6 @@ import tk = require ('../index');
 
 declare var __dirname;
 
-var b_test = false;
-
 export class Simple extends tk.Task {
 	/*
 	* Initialize the task parameters.
