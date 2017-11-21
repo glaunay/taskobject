@@ -309,7 +309,7 @@ class Task extends stream.Duplex {
                 self.applyOnArray(self.shift_jsonContent, self.slotArray);
                 emitter.emit('processed');
             })
-                .on('err', (err) => {
+                .on('error', (err) => {
                 emitter.emit('error');
             });
         }
@@ -398,9 +398,9 @@ class Task extends stream.Duplex {
                 });
             });
         });
-        j.on('error', (e, j) => {
-            console.log('job ' + j.id + ' : ' + e);
-            emitter.emit('error', e, j.id);
+        j.on('jobError', (stdout, stderr, j) => {
+            console.log('job ' + j.id + ' : ' + stderr);
+            emitter.emit('error', stderr, j.id);
         });
         // }
         return emitter;
@@ -435,7 +435,7 @@ class Task extends stream.Duplex {
                 self.shift_jsonContent(streamUsed); // (5)
                 emitter.emit('processed', results);
             })
-                .on('err', (err, jobID) => {
+                .on('error', (err, jobID) => {
                 emitter.emit('error', err, jobID);
             });
         });
@@ -453,7 +453,7 @@ class Task extends stream.Duplex {
             .on('processed', results => {
             self.emit('processed', results);
         })
-            .on('err', (err, jobID) => {
+            .on('error', (err, jobID) => {
             self.emit('err', err, jobID);
         });
         callback();
@@ -507,7 +507,7 @@ class Task extends stream.Duplex {
                     .on('processed', s => {
                     self.emit('processed', s);
                 })
-                    .on('err', s => {
+                    .on('error', s => {
                     self.emit('err', s);
                 });
                 callback();
