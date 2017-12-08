@@ -328,12 +328,15 @@ export abstract class Task extends stream.Duplex {
 			// end of tests
 			if (self.b_test) console.log(inputsTab);
 			self.runFunc(inputsTab)
-			.on('treated', (results) => {
+			.on('treated', results => {
 				self.applyOnArray(self.shift_jsonContent, self.slotArray);
 				emitter.emit('processed');
 			})
 			.on('error', (err) => {
 				emitter.emit('error');
+			})
+			.on('stderrContent', buf => {
+				emitter.emit('stderrContent', buf);
 			});
 		}
 		return emitter;
@@ -405,8 +408,11 @@ export abstract class Task extends stream.Duplex {
 			j.on('completed', (stdout, stderr, jobObject) => {
 				if (stderr) {
 	                stderr.on('data', buf => {
-	                    console.error('stderr content : ');
-	                    console.error(buf.toString());
+	                	if (self.b_test) {
+	                    	console.error('stderr content : ');
+	                    	console.error(buf.toString());
+	                    }
+	                    emitter.emit('stderrContent', buf);
 	                });
 	            }
 	            var chunk: string = '';
@@ -546,12 +552,15 @@ export abstract class Task extends stream.Duplex {
 			if (self.b_test) console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
 			var jsonValue = [jsonVal]; // to adapt to syncProcess modifications
 			self.runFunc(jsonValue) // (4)
-			.on('treated', (results) => {
+			.on('treated', results => {
 				self.shift_jsonContent(streamUsed); // (5)
 				emitter.emit('processed', results);
 			})
 			.on('error', (err, jobID) => {
 				emitter.emit('error', err, jobID);
+			})
+			.on('stderrContent', buf => {
+				emitter.emit('stderrContent', buf);
 			});
 		});
 		return emitter;
@@ -571,6 +580,9 @@ export abstract class Task extends stream.Duplex {
 		})
 		.on('error', (err, jobID) => {
 			self.emit('err', err, jobID);
+		})
+		.on('stderrContent', buf => {
+			self.emit('stderrContent', buf);
 		});
 		callback();
 		return self;
@@ -629,6 +641,9 @@ export abstract class Task extends stream.Duplex {
 				})
 				.on('error', s => {
 					self.emit('err', s);
+				})
+				.on('stderrContent', buf => {
+					self.emit('stderrContent', buf);
 				});
 		    	callback();
 		    }

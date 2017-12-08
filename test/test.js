@@ -53,12 +53,18 @@ var simpleTest = function (management) {
         .on('err', (err, jobID) => {
         console.log('**** ERROR');
     })
+        .on('stderrContent', buf => {
+        console.log('**** STDERR');
+    })
         .superPipe(b)
         .on('processed', results => {
         console.log('**** data 22222');
     })
         .on('err', (err, jobID) => {
         console.log('**** ERROR 22222');
+    })
+        .on('stderrContent', buf => {
+        console.log('**** STDERR 22222');
     })
         .pipe(process.stdout);
 };
