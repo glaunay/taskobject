@@ -21,20 +21,33 @@ A child class of Task must not override methods with a "DO NOT MODIFY" indicatio
 
 */
 Object.defineProperty(exports, "__esModule", { value: true });
+// TODO
+// - doc
+// - NPM
+// - create a run method that does not need a jobManager
+// - kill() method (not necessary thanks to the new jobManager with its "engines")
+// - pushClosing() method : if @chunk receive a null value
+// - init() method : arguments nommés (soit un JSON soit un string)
+const childPro = require("child_process");
 const events = require("events");
-const stream = require("stream");
-const jsonfile = require("jsonfile");
+const fs = require("fs");
 const JSON = require("JSON");
+const jsonfile = require("jsonfile");
+const stream = require("stream");
+const uuid = require("uuid/v4");
 class Task extends stream.Duplex {
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
     * Initialize the task parameters with values gived by user.
+    * Two managements are possible : with a jobManager (1) or without (2).
     */
-    constructor(jobManager, jobProfile, syncMode, options) {
+    constructor(management, syncMode, options) {
         super(options);
         this.b_test = false; // test mode
         this.jobManager = null; // job manager (engineLayer version)
         this.jobProfile = null; // "arwen_express" for example (see the different config into nslurm module)
+        this.emulOptions = {}; // options for job emulation (if no jobManager)
+        this.runFunc = this.run; // function used to run (this.emulate if no jobManager)
         this.syncMode = false; // define the mode : async or not (see next line)
         this.processFunc = null; // async (process) or synchronous (syncProcess) depending on the mode
         this.streamContent = ''; // content of the stream (concatenated @chunk)
@@ -53,14 +66,33 @@ class Task extends stream.Duplex {
         this.settings = {}; // content of the settFile or other settings if the set() method is used
         this.automaticClosure = false; // TODO (not implemented yet)
         this.staticTag = null; // tagTask : must be unique between all the Tasks
-        if (typeof jobManager == "undefined")
-            throw 'ERROR : a job manager must be specified';
-        if (typeof jobProfile == "undefined")
-            throw 'ERROR : a job profile must be specified (even null is correct)';
+        if (typeof management == "undefined")
+            throw 'ERROR : a literal for job management must be specified';
         if (typeof syncMode == "undefined")
             throw 'ERROR : a mode must be specified (sync = true // async = false)';
-        this.jobManager = jobManager;
-        this.jobProfile = jobProfile;
+        if (management.hasOwnProperty('jobManager')) {
+            this.jobManager = management.jobManager;
+            if (management.hasOwnProperty('jobProfile')) {
+                this.jobProfile = management.jobProfile;
+            }
+            else {
+                console.log('NEWS : no jobProfile specified -> take default jobProfile for the ' + this.staticTag + ' task.');
+            }
+        }
+        else if (management.hasOwnProperty('emulate')) {
+            if (!management.emulate.hasOwnProperty('cacheDir'))
+                throw 'ERROR : no cacheDir specified in the jobManagement literal';
+            if (!management.emulate.hasOwnProperty('tcp'))
+                throw 'ERROR : no tcp specified in the jobManagement literal';
+            if (!management.emulate.hasOwnProperty('port'))
+                throw 'ERROR : no port specified in the jobManagement literal';
+            let task_uuid = uuid();
+            this.emulOptions = JSON.parse(JSON.stringify(management.emulate)); // deep-copy
+            this.emulOptions.cacheDir = this.emulOptions.cacheDir + '/' + task_uuid + '/';
+            this.mkdir(this.emulOptions.cacheDir);
+            this.runFunc = this.emulate;
+            console.log('NEWS : you have selected the emulate mode for the ' + this.staticTag + ' task.');
+        }
         // syncMode
         this.syncMode = syncMode;
         if (this.syncMode === true)
@@ -99,7 +131,7 @@ class Task extends stream.Duplex {
     */
     init(data) {
         if (data) {
-            var userData;
+            let userData;
             if (typeof data === "string")
                 userData = this.parseJsonFile(data);
             else
@@ -120,7 +152,7 @@ class Task extends stream.Duplex {
     */
     set(data) {
         if (data) {
-            var userData;
+            let userData;
             if (typeof data === "string")
                 userData = this.parseJsonFile(data);
             else
@@ -141,7 +173,7 @@ class Task extends stream.Duplex {
     }
     /*
     * DO NOT MODIFY
-    * In anticipation of the unique jobManager processus and its monitor mode.e
+    * In anticipation of the unique jobManager processus and its monitor mode.ew
     */
     getState() {
         return {
@@ -173,7 +205,7 @@ class Task extends stream.Duplex {
     *	(3) the inputs : stream or string or path in an array of JSONs
     */
     configJob(inputs) {
-        var self = this;
+        let self = this;
         var jobOpt = {
             'tagTask': self.staticTag,
             'script': self.coreScript,
@@ -238,7 +270,7 @@ class Task extends stream.Duplex {
         };
         while (detectExtremities(toParse)) {
             counter = 0, jsonStart = -1, jsonEnd = -1;
-            for (var i = 0; i < toParse.length; i++) {
+            for (let i = 0; i < toParse.length; i++) {
                 if (toParse[i].match(open)) {
                     if (counter === 0)
                         jsonStart = i; // if a JSON is beginning
@@ -275,7 +307,7 @@ class Task extends stream.Duplex {
         var self = this; // self = this = TaskObject =//= aStream = a slot of self
         self.feed_streamContent(chunk, aStream);
         var numOfRun = -1;
-        for (var i in self.slotArray) {
+        for (let i in self.slotArray) {
             var slot_i = self.slotArray[i];
             if (self.b_test) {
                 console.log("i : " + i);
@@ -290,13 +322,13 @@ class Task extends stream.Duplex {
         }
         if (self.b_test)
             console.log("numOfRun : " + numOfRun);
-        for (var j = 0; j < numOfRun; j++) {
+        for (let j = 0; j < numOfRun; j++) {
             if (self.b_test) {
                 console.log("%%%%%%%%%%%%% here synchronous process");
                 console.log("j : " + j);
             }
             var inputsTab = [];
-            for (var k in self.slotArray) {
+            for (let k in self.slotArray) {
                 inputsTab.push(self.slotArray[k].jsonContent[j]);
             }
             // for tests
@@ -304,7 +336,7 @@ class Task extends stream.Duplex {
             // end of tests
             if (self.b_test)
                 console.log(inputsTab);
-            self.run(inputsTab)
+            self.runFunc(inputsTab)
                 .on('treated', (results) => {
                 self.applyOnArray(self.shift_jsonContent, self.slotArray);
                 emitter.emit('processed');
@@ -362,20 +394,20 @@ class Task extends stream.Duplex {
     run(jsonValue) {
         var emitter = new events.EventEmitter();
         var self = this;
-        var uuid = null;
+        var job_uuid = null; // in case a uuid is passed
         // if (jsonValue === 'null' || jsonValue === 'null\n') { // (1)
         // 	self.pushClosing();
         // } else {
         var jobOpt = self.prepareJob(jsonValue); // (2) // jsonValue = array of JSONs
         if (jobOpt.inputs.hasOwnProperty('uuid')) {
-            uuid = jobOpt.inputs.uuid;
+            job_uuid = jobOpt.inputs.uuid;
             delete jobOpt.inputs['uuid'];
         }
         if (self.b_test) {
             console.log("jobOpt :");
             console.log(jobOpt);
         }
-        var j = self.jobManager.push(self.jobProfile, jobOpt); // (3)
+        var j = self.jobManager.push(self.jobProfile, jobOpt, job_uuid); // (3)
         j.on('completed', (stdout, stderr, jobObject) => {
             if (stderr) {
                 stderr.on('data', buf => {
@@ -388,8 +420,8 @@ class Task extends stream.Duplex {
             stdout.on('end', () => {
                 self.async(function () {
                     var res = self.prepareResults(chunk);
-                    if (uuid !== null)
-                        res['uuid'] = uuid;
+                    if (job_uuid !== null)
+                        res['uuid'] = job_uuid;
                     return res;
                 }).on('end', results => {
                     self.goReading = true;
@@ -404,6 +436,85 @@ class Task extends stream.Duplex {
         });
         // }
         return emitter;
+    }
+    /*
+    * DO NOT MODIFY
+    * Similar to the this.run function but without any jobManager
+    */
+    emulate(jsonValue) {
+        console.log("hello world");
+        let emitter = new events.EventEmitter();
+        let self = this;
+        let job_uuid = null; // in case a uuid is passed
+        let arg_array = [];
+        let jobOpt = self.prepareJob(jsonValue);
+        console.log(jobOpt);
+        if (jobOpt.inputs.hasOwnProperty('uuid')) {
+            job_uuid = jobOpt.inputs.uuid;
+            delete jobOpt.inputs['uuid'];
+        }
+        let coreScriptJob = self.prepFiles(jobOpt);
+        arg_array.push(coreScriptJob);
+        console.log('bash');
+        console.log(arg_array);
+        let myProcess = childPro.spawn('bash', arg_array);
+        myProcess.stdout.on('data', (d) => {
+            console.log('data : ');
+            console.log(d.toString());
+        });
+        myProcess.stderr.on('data', (d) => {
+            console.log('err : ');
+            console.log(d.toString());
+        });
+        myProcess.on('close', (code) => {
+            // do something
+            console.log('toto & code is : ' + code);
+        });
+        return emitter;
+    }
+    /*
+    * DO NOT MODIFY
+    * Used with the emulate method.
+    * Directory and file creations. Bash script creation.
+    */
+    prepFiles(jobOpt) {
+        let self = this;
+        let jobID = uuid();
+        let str_bash = '#!/bin/bash\n';
+        // directory creations
+        let workDir = self.emulOptions.cacheDir + '/' + jobID + '/';
+        self.mkdir(workDir);
+        let inputDir = workDir + '/input/';
+        self.mkdir(inputDir);
+        // bash creation
+        str_bash += 'echo "JOB_STATUS ' + jobID + ' START"  | nc -w 2 ' + self.emulOptions.tcp + ' ' + self.emulOptions.port + " > /dev/null\n";
+        if (jobOpt.hasOwnProperty('exportVar')) {
+            for (let key in jobOpt.exportVar) {
+                str_bash += key + '="' + jobOpt.exportVar[key] + '"\n';
+            }
+        }
+        if (jobOpt.hasOwnProperty('inputs')) {
+            for (let key in jobOpt.inputs) {
+                let inputFile = workDir + '/input/' + key + '.inp';
+                self.writeFile(inputFile, jobOpt.inputs[key]);
+                str_bash += key + '="' + inputFile + '"\n';
+            }
+        }
+        if (jobOpt.hasOwnProperty('modules')) {
+            for (let key in jobOpt.modules) {
+                str_bash += "module load " + jobOpt.modules[key] + '\n';
+            }
+        }
+        let coreScriptJob = workDir + '/' + jobID + '_coreScript.sh';
+        self.copyFile(self.coreScript, coreScriptJob);
+        str_bash += '. ' + coreScriptJob + '\n';
+        str_bash += 'echo "JOB_STATUS ' + jobID + ' FINISHED"  | nc -w 2 ' + self.emulOptions.tcp + ' ' + self.emulOptions.port + " > /dev/null\n";
+        let bashScript = workDir + '/' + jobID + '.sh';
+        self.writeFile(bashScript, str_bash);
+        return bashScript;
+        // or
+        // self.writeFile(bashPath, str_bash);
+        // return path_bash;
     }
     /*
     * DO NOT MODIFY
@@ -430,7 +541,7 @@ class Task extends stream.Duplex {
             if (self.b_test)
                 console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
             var jsonValue = [jsonVal]; // to adapt to syncProcess modifications
-            self.run(jsonValue) // (4)
+            self.runFunc(jsonValue) // (4)
                 .on('treated', (results) => {
                 self.shift_jsonContent(streamUsed); // (5)
                 emitter.emit('processed', results);
@@ -562,7 +673,7 @@ class Task extends stream.Duplex {
         var args = Array.prototype.slice.call(arguments, 2); // (1)
         if (Array.isArray(myData)) {
             var results = [];
-            for (var i in myData) {
+            for (let i in myData) {
                 args.unshift(myData[i]);
                 results.push(myFunc.apply(self, args));
             }
@@ -579,8 +690,8 @@ class Task extends stream.Duplex {
     */
     concatJson(jsonTab) {
         var newJson = {};
-        for (var i = 0; i < jsonTab.length; i++) {
-            for (var key in jsonTab[i]) {
+        for (let i = 0; i < jsonTab.length; i++) {
+            for (let key in jsonTab[i]) {
                 if (newJson.hasOwnProperty(key))
                     throw 'ERROR with jsonTab in concatJson() : 2 JSON have the same key';
                 newJson[key] = jsonTab[i][key];
@@ -609,7 +720,7 @@ class Task extends stream.Duplex {
             return dict;
         }
         catch (err) {
-            console.log('ERROR in parseJsonFile() : ' + err);
+            console.log('ERROR in parseJsonFile() :\n' + err);
             return null;
         }
     }
@@ -622,9 +733,44 @@ class Task extends stream.Duplex {
             return JSON.parse(data);
         }
         catch (err) {
-            console.log('ERROR in parseJson() : ' + err);
+            console.log('ERROR in parseJson() :\n' + err);
             return null;
         }
+    }
+    /*
+    * DO NOT MODIFY
+    * Try to write the @file with the @fileContent.
+    */
+    writeFile(file, fileContent) {
+        try {
+            fs.writeFileSync(file, fileContent);
+        }
+        catch (err) {
+            console.log('ERROR while writing the file ' + file + ' :\n' + err);
+        }
+    }
+    /*
+    * DO NOT MODIFY
+    * Try to create the @dir.
+    */
+    mkdir(dir) {
+        try {
+            fs.mkdirSync(dir);
+        }
+        catch (err) {
+            console.log('ERROR while creating the directory ' + dir + ' :\n' + err);
+        }
+    }
+    /*
+    * DO NOT MODIFY
+    * Try to copy the file @src to the path @dest.
+    */
+    copyFile(src, dest) {
+        let rs = fs.createReadStream(src);
+        let ws = fs.createWriteStream(dest);
+        rs.pipe(ws);
+        rs.on("error", (err) => { console.log('ERROR in copyFile while reading the file ' + src + ' :\n' + err); });
+        ws.on("error", function (err) { console.log('ERROR in copyFile while writing the file ' + dest + ' :\n' + err); });
     }
     /*
     * DO NOT MODIFY

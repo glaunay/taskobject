@@ -36,8 +36,8 @@ export class Simple extends tk.Task {
 	/*
 	* Initialize the task parameters.
 	*/
-	public constructor (jobManager, jobProfile: string, syncMode: boolean, options?: any) {
-		super(jobManager, jobProfile, syncMode, options);
+	public constructor (management: any, syncMode: boolean, options?: any) {
+		super(management, syncMode, options);
         this.rootdir = __dirname;
         this.settFile = this.rootdir + '/../data/settings.json';
         super.init(this.settFile);
