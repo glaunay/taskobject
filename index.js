@@ -347,8 +347,8 @@ class Task extends stream.Duplex {
                 .on('stderrContent', buf => {
                 emitter.emit('stderrContent', buf);
             })
-                .on('lostJob', (msg, j) => {
-                emitter.emit('lostJob', msg, j.id);
+                .on('lostJob', (msg, jid) => {
+                emitter.emit('lostJob', msg, jid);
             });
         }
         return emitter;
@@ -565,8 +565,8 @@ class Task extends stream.Duplex {
                 .on('stderrContent', (buf) => {
                 emitter.emit('stderrContent', buf);
             })
-                .on('lostJob', (msg, j) => {
-                emitter.emit('lostJob', msg, j.id);
+                .on('lostJob', (msg, jid) => {
+                emitter.emit('lostJob', msg, jid);
             });
         });
         return emitter;
@@ -589,8 +589,8 @@ class Task extends stream.Duplex {
             .on('stderrContent', buf => {
             self.emit('stderrContent', buf);
         })
-            .on('lostJob', (msg, j) => {
-            self.emit('lostJob', msg, j.id);
+            .on('lostJob', (msg, jid) => {
+            self.emit('lostJob', msg, jid);
         });
         callback();
         return self;
@@ -649,8 +649,8 @@ class Task extends stream.Duplex {
                     .on('stderrContent', buf => {
                     self.emit('stderrContent', buf);
                 })
-                    .on('lostJob', (msg, j) => {
-                    self.emit('lostJob', msg, j.id);
+                    .on('lostJob', (msg, jid) => {
+                    self.emit('lostJob', msg, jid);
                 });
                 callback();
             }
