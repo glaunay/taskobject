@@ -346,6 +346,9 @@ class Task extends stream.Duplex {
             })
                 .on('stderrContent', buf => {
                 emitter.emit('stderrContent', buf);
+            })
+                .on('lostJob', (msg, j) => {
+                emitter.emit('lostJob', msg, j.id);
             });
         }
         return emitter;
@@ -439,6 +442,10 @@ class Task extends stream.Duplex {
         j.on('jobError', (stdout, stderr, j) => {
             console.log('job ' + j.id + ' : ' + stderr);
             emitter.emit('error', stderr, j.id);
+        })
+            .on('lostJob', (msg, j) => {
+            console.log('job ' + j.id + ' : ' + msg);
+            emitter.emit('lostJob', msg, j.id);
         });
         // }
         return emitter;
@@ -548,15 +555,18 @@ class Task extends stream.Duplex {
                 console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
             var jsonValue = [jsonVal]; // to adapt to syncProcess modifications
             self.runFunc(jsonValue) // (4)
-                .on('treated', results => {
+                .on('treated', (results) => {
                 self.shift_jsonContent(streamUsed); // (5)
                 emitter.emit('processed', results);
             })
                 .on('error', (err, jobID) => {
                 emitter.emit('error', err, jobID);
             })
-                .on('stderrContent', buf => {
+                .on('stderrContent', (buf) => {
                 emitter.emit('stderrContent', buf);
+            })
+                .on('lostJob', (msg, j) => {
+                emitter.emit('lostJob', msg, j.id);
             });
         });
         return emitter;
@@ -578,6 +588,9 @@ class Task extends stream.Duplex {
         })
             .on('stderrContent', buf => {
             self.emit('stderrContent', buf);
+        })
+            .on('lostJob', (msg, j) => {
+            self.emit('lostJob', msg, j.id);
         });
         callback();
         return self;
@@ -635,6 +648,9 @@ class Task extends stream.Duplex {
                 })
                     .on('stderrContent', buf => {
                     self.emit('stderrContent', buf);
+                })
+                    .on('lostJob', (msg, j) => {
+                    self.emit('lostJob', msg, j.id);
                 });
                 callback();
             }
