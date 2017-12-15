@@ -435,8 +435,8 @@ export abstract class Task extends stream.Duplex {
 	        j.on('jobError', (stdout, stderr, j) => {
 	            console.log('job ' + j.id + ' : ' + stderr);
 	            emitter.emit('error', stderr, j.id);
-	        })
-	        .on('lostJob', (msg, j) => {
+	        });
+	        j.on('lostJob', (msg, j) => {
 	        	console.log('job ' + j.id + ' : ' + msg);
 	        	emitter.emit('lostJob', msg, j.id);
 	        });
