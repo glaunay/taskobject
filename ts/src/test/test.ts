@@ -34,6 +34,7 @@ var usage = function (): void {
     str += 'DATE : 2017.12.04\n\n';
     str += 'USAGE : (in the TaskObject directory)\n';
     str += 'node test/test.js\n';
+    str += '    -u, to have help\n';
     str += '    -cache [PATH_TO_CACHE_DIRECTORY_FOR_NSLURM], [optional if -conf]\n';
     str += '    -conf [PATH_TO_THE_CLUSTER_CONFIG_FILE_FOR_NSLURM], [not necessary if --emul]\n';
     str += '    -file [PATH_TO_YOUR_INPUT_FILE]\n';
