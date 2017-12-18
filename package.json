@@ -1,13 +1,29 @@
 {
-  "name": "taskObject",
+  "name": "taskobject",
   "version": "0.1.0",
   "author": "Mélanie Garnier",
-  "date" : "last modification : 2017-11-03",
+  "date": "last modification : 2017-12-18",
   "description": "A class to define tasks",
   "dependencies": {
     "JSON": "^1.0.0",
     "jsonfile": "^3.0.0",
     "my-local-ip": "^1.0.0",
     "nslurm": "^0.8.0"
-  }
+  },
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "node test/test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/melaniegarnier/taskObject.git"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/melaniegarnier/taskObject/issues"
+  },
+  "homepage": "https://github.com/melaniegarnier/taskObject#readme"
 }
