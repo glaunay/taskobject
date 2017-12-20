@@ -10,8 +10,13 @@
 
 
 * Usage :
-var tk = require('taskObject');
-var taskTest = new tk.Task (jobManager, jobProfile, syncMode);
+var tk = require('taskobject');
+var management = {
+    "jobManager" : jobManager, // JM is "nslurm" repo
+    "jobProfile" : jobProfile // see with JM spec.
+}
+var syncMode = true; // define the usage of your taskTest
+var taskTest = new tk.Task (management, syncMode);
 readableStream.pipe(taskTest).pipe(writableStream);
 
 
@@ -21,33 +26,21 @@ A child class of Task must not override methods with a "DO NOT MODIFY" indicatio
 
 */
 Object.defineProperty(exports, "__esModule", { value: true });
-// TODO
-// - doc
-// - NPM
-// - create a run method that does not need a jobManager
-// - kill() method (not necessary thanks to the new jobManager with its "engines")
-// - pushClosing() method : if @chunk receive a null value
-// - init() method : arguments nommés (soit un JSON soit un string)
-const childPro = require("child_process");
 const events = require("events");
 const fs = require("fs");
 const JSON = require("JSON");
 const jsonfile = require("jsonfile");
 const stream = require("stream");
-const uuid = require("uuid/v4");
 class Task extends stream.Duplex {
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
     * Initialize the task parameters with values gived by user.
-    * Two managements are possible : with a jobManager (1) or without (2).
     */
     constructor(management, syncMode, options) {
         super(options);
         this.b_test = false; // test mode
         this.jobManager = null; // job manager (engineLayer version)
         this.jobProfile = null; // "arwen_express" for example (see the different config into nslurm module)
-        this.emulOptions = {}; // options for job emulation (if no jobManager)
-        this.runFunc = this.run; // function used to run (this.emulate if no jobManager)
         this.syncMode = false; // define the mode : async or not (see next line)
         this.processFunc = null; // async (process) or synchronous (syncProcess) depending on the mode
         this.streamContent = ''; // content of the stream (concatenated @chunk)
@@ -79,19 +72,8 @@ class Task extends stream.Duplex {
                 console.log('NEWS : no jobProfile specified -> take default jobProfile for the ' + this.staticTag + ' task.');
             }
         }
-        else if (management.hasOwnProperty('emulate')) {
-            if (!management.emulate.hasOwnProperty('cacheDir'))
-                throw 'ERROR : no cacheDir specified in the jobManagement literal';
-            if (!management.emulate.hasOwnProperty('tcp'))
-                throw 'ERROR : no tcp specified in the jobManagement literal';
-            if (!management.emulate.hasOwnProperty('port'))
-                throw 'ERROR : no port specified in the jobManagement literal';
-            let task_uuid = uuid();
-            this.emulOptions = JSON.parse(JSON.stringify(management.emulate)); // deep-copy
-            this.emulOptions.cacheDir = this.emulOptions.cacheDir + '/' + task_uuid + '/';
-            this.mkdir(this.emulOptions.cacheDir);
-            this.runFunc = this.emulate;
-            console.log('NEWS : you have selected the emulate mode for the ' + this.staticTag + ' task.');
+        else {
+            throw 'ERROR : no \'jobManager\' key specified in the job management literal.';
         }
         // syncMode
         this.syncMode = syncMode;
@@ -336,7 +318,7 @@ class Task extends stream.Duplex {
             // end of tests
             if (self.b_test)
                 console.log(inputsTab);
-            self.runFunc(inputsTab)
+            self.run(inputsTab)
                 .on('treated', results => {
                 self.applyOnArray(self.shift_jsonContent, self.slotArray);
                 emitter.emit('processed');
@@ -452,85 +434,6 @@ class Task extends stream.Duplex {
     }
     /*
     * DO NOT MODIFY
-    * Similar to the this.run function but without any jobManager
-    */
-    emulate(jsonValue) {
-        console.log("hello world");
-        let emitter = new events.EventEmitter();
-        let self = this;
-        let job_uuid = null; // in case a uuid is passed
-        let arg_array = [];
-        let jobOpt = self.prepareJob(jsonValue);
-        console.log(jobOpt);
-        if (jobOpt.inputs.hasOwnProperty('uuid')) {
-            job_uuid = jobOpt.inputs.uuid;
-            delete jobOpt.inputs['uuid'];
-        }
-        let coreScriptJob = self.prepFiles(jobOpt);
-        arg_array.push(coreScriptJob);
-        console.log('bash');
-        console.log(arg_array);
-        let myProcess = childPro.spawn('bash', arg_array);
-        myProcess.stdout.on('data', (d) => {
-            console.log('data : ');
-            console.log(d.toString());
-        });
-        myProcess.stderr.on('data', (d) => {
-            console.log('err : ');
-            console.log(d.toString());
-        });
-        myProcess.on('close', (code) => {
-            // do something
-            console.log('toto & code is : ' + code);
-        });
-        return emitter;
-    }
-    /*
-    * DO NOT MODIFY
-    * Used with the emulate method.
-    * Directory and file creations. Bash script creation.
-    */
-    prepFiles(jobOpt) {
-        let self = this;
-        let jobID = uuid();
-        let str_bash = '#!/bin/bash\n';
-        // directory creations
-        let workDir = self.emulOptions.cacheDir + '/' + jobID + '/';
-        self.mkdir(workDir);
-        let inputDir = workDir + '/input/';
-        self.mkdir(inputDir);
-        // bash creation
-        str_bash += 'echo "JOB_STATUS ' + jobID + ' START"  | nc -w 2 ' + self.emulOptions.tcp + ' ' + self.emulOptions.port + " > /dev/null\n";
-        if (jobOpt.hasOwnProperty('exportVar')) {
-            for (let key in jobOpt.exportVar) {
-                str_bash += key + '="' + jobOpt.exportVar[key] + '"\n';
-            }
-        }
-        if (jobOpt.hasOwnProperty('inputs')) {
-            for (let key in jobOpt.inputs) {
-                let inputFile = workDir + '/input/' + key + '.inp';
-                self.writeFile(inputFile, jobOpt.inputs[key]);
-                str_bash += key + '="' + inputFile + '"\n';
-            }
-        }
-        if (jobOpt.hasOwnProperty('modules')) {
-            for (let key in jobOpt.modules) {
-                str_bash += "module load " + jobOpt.modules[key] + '\n';
-            }
-        }
-        let coreScriptJob = workDir + '/' + jobID + '_coreScript.sh';
-        self.copyFile(self.coreScript, coreScriptJob);
-        str_bash += '. ' + coreScriptJob + '\n';
-        str_bash += 'echo "JOB_STATUS ' + jobID + ' FINISHED"  | nc -w 2 ' + self.emulOptions.tcp + ' ' + self.emulOptions.port + " > /dev/null\n";
-        let bashScript = workDir + '/' + jobID + '.sh';
-        self.writeFile(bashScript, str_bash);
-        return bashScript;
-        // or
-        // self.writeFile(bashPath, str_bash);
-        // return path_bash;
-    }
-    /*
-    * DO NOT MODIFY
     * (1) use @aStream (first choice) or @this (second choice)
     * (2) consume @chunk
     * (3) look at every JSON object we found into the @jsonContent of @streamUsed
@@ -554,7 +457,7 @@ class Task extends stream.Duplex {
             if (self.b_test)
                 console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
             var jsonValue = [jsonVal]; // to adapt to syncProcess modifications
-            self.runFunc(jsonValue) // (4)
+            self.run(jsonValue) // (4)
                 .on('treated', (results) => {
                 self.shift_jsonContent(streamUsed); // (5)
                 emitter.emit('processed', results);

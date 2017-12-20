@@ -6,13 +6,13 @@ node /path/to/this/script/test.js -cache /path/to/cache/tmp/ [optional if -conf]
                                 -conf /path/to/nslurm/config/arwenConf.json [not necessary if --emul]
                                 -file /path/to/your/file.txt
                                 --index // to allow indexation of the cache directory of nslurm [optional]
-                                --emul // to run the test without any job manager [optional]
 */
 
 import sim = require ('./simpleTask');
 import localIP = require ('my-local-ip');
 import jsonfile = require ('jsonfile');
 import fs = require ('fs');
+import jobManager = require ('nslurm'); // engineLayer branch
 import stream = require ('stream');
 
 var tcp = localIP(),
@@ -23,7 +23,6 @@ var engineType: string = null,
     bean: any = null,
     inputFile: string = null,
     b_index: boolean = false,
-    b_emul: boolean = false,
     options: {} = null;
 var optCacheDir: string[] = [];
 
@@ -31,7 +30,7 @@ var optCacheDir: string[] = [];
 //////////////// usage //////////////////
 var usage = function (): void {
     let str: string = '\n\n********** Test file to run a SimpleTask **********\n\n';
-    str += 'DATE : 2017.12.04\n\n';
+    str += 'DATE : 2017.12.19\n\n';
     str += 'USAGE : (in the TaskObject directory)\n';
     str += 'node test/test.js\n';
     str += '    -u, to have help\n';
@@ -39,7 +38,6 @@ var usage = function (): void {
     str += '    -conf [PATH_TO_THE_CLUSTER_CONFIG_FILE_FOR_NSLURM], [not necessary if --emul]\n';
     str += '    -file [PATH_TO_YOUR_INPUT_FILE]\n';
     str += '    --index, to allow indexation of the cache directory of nslurm [optional]\n';
-    str += '    --emul, to run the test without any job manager [optional]\n\n';
     str += 'EXAMPLE :\n';
     str += 'node test/test.js\n';
     str += '    -cache /home/mgarnier/tmp/\n';
@@ -130,11 +128,10 @@ process.argv.forEach(function (val, index, array){
     if (val === '--index') {
         b_index = true;
     }
-    if (val === '--emul') {
-        b_emul = true;
-    }
 });
 if (! inputFile) throw 'No input file specified ! Usage : ' + usage();
+if (! bean) throw 'No config file specified ! Usage : ' + usage();
+if (! bean.hasOwnProperty('cacheDir') && ! cacheDir) throw 'No cacheDir specified ! Usage : ' + usage();
 
 
 ///////////// management /////////////
@@ -144,45 +141,31 @@ options = {
     'port' : port
 }
 
-if (! b_emul) {
-    ///////////// jobManager /////////////
-    if (! bean) throw 'No config file specified ! Usage : ' + usage();
-    if (! bean.hasOwnProperty('cacheDir') && ! cacheDir) throw 'No cacheDir specified ! Usage : ' + usage();
-    bean.cacheDir = cacheDir ? cacheDir : bean.cacheDir;
-    options['cacheDir'] = bean.cacheDir;
-    optCacheDir.push(bean.cacheDir);
+///////////// jobManager /////////////
+bean.cacheDir = cacheDir ? cacheDir : bean.cacheDir;
+options['cacheDir'] = bean.cacheDir;
+optCacheDir.push(bean.cacheDir);
 
-    let jobManager = require ('nslurm'); // engineLayer branch
-    let jobProfile: string = null; // "arwen_express" or "arwen_cpu" for example
-    let management: {} = {
-        'jobManager' : jobManager,
-        'jobProfile' : jobProfile
-    }
-    //jobManager.debugOn();
-
-    if (b_index) jobManager.index(optCacheDir);
-    else jobManager.index(null);
-
-    jobManager.configure({"engine" : bean.engineType, "binaries" : bean.binaries });
-
-    jobManager.start(options);
-    jobManager.on('exhausted', function(){
-        console.log("All jobs processed");
-    });
-    jobManager.on('ready', function() {
-        simpleTest(management);
-    });
-
-
-} else {
-    ///////////// emulation /////////////
-    if (! cacheDir) throw 'No cacheDir specified ! Usage : ' + usage();
-    options['cacheDir'] = cacheDir;
-    let management: {} = {
-        'emulate' : options
-    }
-    simpleTest(management);
+let jobProfile: string = null; // "arwen_express" or "arwen_cpu" for example
+let management: {} = {
+    'jobManager' : jobManager,
+    'jobProfile' : jobProfile
 }
+//jobManager.debugOn();
+
+if (b_index) jobManager.index(optCacheDir);
+else jobManager.index(null);
+
+jobManager.configure({"engine" : bean.engineType, "binaries" : bean.binaries });
+
+jobManager.start(options);
+jobManager.on('exhausted', function(){
+    console.log("All jobs processed");
+});
+jobManager.on('ready', function() {
+    simpleTest(management);
+});
+
 
 
 

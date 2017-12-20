@@ -24,8 +24,6 @@ The output is a literal with this form :
 
 // TODO
 // - doc
-// - git
-// - npm
 
 
 import tk = require ('../index');
