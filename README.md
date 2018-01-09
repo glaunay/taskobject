@@ -6,7 +6,7 @@ Taskobject is an instance of stream, in order to define bioinformatic tasks.
 
 ----------
 
-<h2><i class="icon-info-circled"></i>What is a Task ?<h2>
+<h2>What is a Task ?<h2>
 
 Coming soon...
 
@@ -18,7 +18,7 @@ Coming soon...
 
 ----------
 
-<h2><i class="icon-download"></i>Installation<h2>
+<h2>Installation<h2>
 
 In your project repository :
 ```
@@ -27,7 +27,7 @@ npm install taskobject
 
 
 ----------
-<h2><i class="icon-play-circled2"></i>Usage<h2>
+<h2>Usage<h2>
 
 <h3>A simple test<h3>
 
@@ -36,7 +36,7 @@ In your JS script, import the test file :
 var tkTest = require('./node_modules/taskobject/test/test');
 ```
 
-Then you have to start and set up a JM (<i class="icon-right-hand"></i>Job Manager, more info in the [<i class="icon-help-circled"></i>More about...](#more-about) section). We provide a method that takes care of that :
+Then you have to start and set up a JM (= Job Manager, more info in the [More about...](#more-about) section). We provide a method that takes care of that :
 ```
 tkTest.JMsetup();
 ```
@@ -49,8 +49,8 @@ tkTest.JMsetup().on('ready', function (JMobject) {
 });
 ```
 
-<i class="icon-left"></i>`inputFile` is the absolute path to your input file. For the file, no specific format needed.
-<i class="icon-left"></i>`management` is a literal like :
+- `inputFile` is the absolute path to your input file. For the file, no specific format needed.
+- `management` is a literal like :
 ```
 let management = {
 	'jobManager' : JMobject // provided by the JMsetup method
@@ -60,7 +60,7 @@ let management = {
 The `simpleTest` method :
 
 1. creates a stream (Readable) containing a JSON with your `inputFile` content,
-2. instantiates a simpleTask (<i class="icon-right-hand"></i> more info in the [<i class="icon-help-circled"></i>More about...](#more-about) section),
+2. instantiates a simpleTask (more info in the [More about...](#more-about) section),
 3. pipes the stream on the simpleTask, also piped on `process.stdout`, so you can watch the results in your console.
 
 
@@ -72,7 +72,7 @@ In your JavaScript module :
 var tk = require('taskObject');
 ```
 
-<h3>Creating a task object - <i class="icon-attention"></i> not updated<h3>
+<h3>Creating a task object - not updated<h3>
 
 In your JavaScript module :
 ```
@@ -81,7 +81,7 @@ var taskTest = new tk.Task (jobManager, jobProfile);
 Note that you need a job manager to use taskObject, like **nslurm**  ([GitHub repo][1], [NPM package][2]) adapted to SLURM manager.
 
 
-<h3>Using in a pipeline - <i class="icon-attention"></i> not updated<h3>
+<h3>Using in a pipeline - not updated<h3>
 
 In your JavaScript module :
 ```
@@ -90,9 +90,9 @@ readableStream
 .pipe(writableStream);
 ```
 
-<h3>Setting the task - <i class="icon-attention"></i> not updated<h3>
+<h3>Setting the task - not updated<h3>
 
-You can modify the parameters in the <i class="icon-file"></i> **./data/settings.json** file :
+You can modify the parameters in the **./data/settings.json** file :
 
 ```
 {
@@ -106,7 +106,7 @@ You can modify the parameters in the <i class="icon-file"></i> **./data/settings
 ```
 Proper task parameters must be defined in the "settings" part of the JSON.
 
-<h3>Testing the task with stdin - <i class="icon-attention"></i> not updated<h3>
+<h3>Testing the task with stdin - not updated<h3>
 
 On a server using the SLURM manager, in your terminal :
 ```
@@ -120,7 +120,7 @@ Then you can write a JSON containing a key "input", like :
 
 
 ----------
-<h2><i class="icon-pencil"></i>Task developer<h2>
+<h2>Task developer<h2>
 
 <h3>Installation<h3>
 
@@ -154,7 +154,7 @@ Coming soon...
 
 
 ----------
-<h2><i class="icon-help-circled"></i>More about...<h2>
+<h2>More about...<h2>
 
 <h3>Job Manager<h3>
 
