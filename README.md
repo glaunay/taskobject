@@ -1,4 +1,4 @@
-<h1>**Taskobject**<h1>
+# Taskobject
 
 ----------
 
@@ -6,7 +6,7 @@ Taskobject is an instance of stream, in order to define bioinformatic tasks.
 
 ----------
 
-<h2>What is a Task ?<h2>
+## What is a Task ?
 
 Coming soon...
 
@@ -18,7 +18,7 @@ Coming soon...
 
 ----------
 
-<h2>Installation<h2>
+## Installation
 
 In your project repository :
 ```
@@ -27,9 +27,9 @@ npm install taskobject
 
 
 ----------
-<h2>Usage<h2>
+## Usage
 
-<h3>A simple test<h3>
+### A simple test
 
 In your JS script, import the test file :
 ```
@@ -65,14 +65,14 @@ The `simpleTest` method :
 
 
 
-<h3>Loading library<h3>
+### Loading library
 
 In your JavaScript module :
 ```
 var tk = require('taskObject');
 ```
 
-<h3>Creating a task object - not updated<h3>
+### Creating a task object - not updated
 
 In your JavaScript module :
 ```
@@ -81,7 +81,7 @@ var taskTest = new tk.Task (jobManager, jobProfile);
 Note that you need a job manager to use taskObject, like **nslurm**  ([GitHub repo][1], [NPM package][2]) adapted to SLURM manager.
 
 
-<h3>Using in a pipeline - not updated<h3>
+### Using in a pipeline - not updated
 
 In your JavaScript module :
 ```
@@ -90,7 +90,7 @@ readableStream
 .pipe(writableStream);
 ```
 
-<h3>Setting the task - not updated<h3>
+### Setting the task - not updated
 
 You can modify the parameters in the **./data/settings.json** file :
 
@@ -106,7 +106,7 @@ You can modify the parameters in the **./data/settings.json** file :
 ```
 Proper task parameters must be defined in the "settings" part of the JSON.
 
-<h3>Testing the task with stdin - not updated<h3>
+### Testing the task with stdin - not updated
 
 On a server using the SLURM manager, in your terminal :
 ```
@@ -120,9 +120,9 @@ Then you can write a JSON containing a key "input", like :
 
 
 ----------
-<h2>Task developer<h2>
+## Task developer
 
-<h3>Installation<h3>
+### Installation
 
 In your main directory :
 ```
@@ -131,7 +131,7 @@ cd ./taskobject/
 npm install
 ```
 
-<h3>Test<h3>
+### Test
 
 In the `./taskobject/` directory :
 ```
@@ -148,20 +148,20 @@ node ./test/test.js
 ```
 This use the simpleTask created as a task example. A simpleTask 
 
-<h3>Development of your proper task<h3>
+### Development of your proper task
 
 Coming soon...
 
 
 ----------
-<h2>More about...<h2>
+## More about...
 
-<h3>Job Manager<h3>
+### Job Manager
 
 Coming soon...
 A Job Manager (JM) is necessary to run a Task. In our case, we use the nslurm package ([GitHub repo][1], [NPM package][2]), adapted for SLURM.
 
-<h3>SimpleTask<h3>
+### SimpleTask
 
 Coming soon...
 The simpleTask has been implemented only for the tests. It :
