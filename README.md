@@ -66,69 +66,6 @@ The `simpleTest` method :
 3. pipes the stream on the simpleTask, also piped on `process.stdout`, so you can watch the results in your console.
 
 
-
-### Loading library
-
-In your JavaScript module :
-
-```
-var tk = require('taskObject');
-```
-
-
-### Creating a task object - not updated
-
-In your JavaScript module :
-
-```
-var taskTest = new tk.Task (jobManager, jobProfile);
-```
-Note that you need a job manager to use taskObject, like **nslurm**  ([GitHub repo][1], [NPM package][2]) adapted to SLURM manager.
-
-
-### Using in a pipeline - not updated
-
-In your JavaScript module :
-
-```
-readableStream
-.pipe(taskTest)
-.pipe(writableStream);
-```
-
-
-### Setting the task - not updated
-
-You can modify the parameters in the **./data/settings.json** file :
-
-```
-{
-	"coreScript": "./data/simple.sh",
-	"jobsArray" : [],
-	"wait" : true,
-	"automaticClosure": false,
-	// proper task parameters :
-	"settings": {}
-}
-```
-Proper task parameters must be defined in the "settings" part of the JSON.
-
-
-### Testing the task with stdin - not updated
-
-On a server using the SLURM manager, in your terminal :
-
-```
-$ node ./test/test.js -forcecache ./tmp/forceCache/
-```
-
-Then you can write a JSON containing a key "input", like :
-
-```
-{"input" : "hello world"}
-```
-
-
 ## Task developer
 
 ### Installation
@@ -172,18 +109,18 @@ Coming soon...
 
 ### Job Manager
 
-Coming soon...
+Coming soon...  
 A Job Manager (JM) is necessary to run a Task. In our case, we use the nslurm package ([GitHub repo][1], [NPM package][2]), adapted for SLURM.
 
 ### SimpleTask
 
-Coming soon...
+Coming soon...  
 The simpleTask has been implemented only for the tests. It :
 
-1. takes a JSON as entry,
+1. takes a JSON as entry on its Writable interface (via a pipe, like `x.pipe(simpleTask)`),
 2. splits the JSON line by line,
 3. creates a new JSON : each key is a line number and the value is the corresponding line content,
-4. returns this new JSON.
+4. push this new JSON on its Readable interface. Then we can use a pipe on it, like `simpleTask.pipe(y)`.
 
 
 
