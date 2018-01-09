@@ -8,15 +8,9 @@ node /path/to/this/script/test.js -cache /path/to/cache/tmp/ [optional if -conf]
                                 -file /path/to/your/file.txt
                                 --index // to allow indexation of the cache directory of nslurm [optional]
 */
-const sim = require("./simpleTask");
-const localIP = require("my-local-ip");
 const jsonfile = require("jsonfile");
-const fs = require("fs");
-const jobManager = require("nslurm"); // engineLayer branch
-const stream = require("stream");
-var tcp = localIP(), port = "2220";
-var uuid = "67593282-c4a4-4fd0-8861-37d8548ce236";
-var engineType = null, cacheDir = null, bean = null, inputFile = null, b_index = false, options = null;
+const func = require("./index");
+var cacheDir = null, bean = null, inputFile = null, b_index = false;
 var optCacheDir = [];
 //////////////// usage //////////////////
 var usage = function () {
@@ -36,54 +30,6 @@ var usage = function () {
     str += '    -file ./test/test.txt\n\n';
     str += '**************************************************\n\n';
     console.log(str);
-};
-//////////// functions /////////////
-var simpleTest = function (management) {
-    let syncMode = true;
-    var a = new sim.Simple(management, syncMode);
-    //a.testMode(true);
-    var b = new sim.Simple(management, syncMode); // for superPipe() tests
-    //b.testMode(true);
-    // pipeline
-    //process.stdin.pipe(a); // {"input" : "toto"} for example
-    fileToStream(inputFile).pipe(a)
-        .on('processed', results => {
-        console.log('**** data');
-    })
-        .on('err', (err, jobID) => {
-        console.log('**** ERROR');
-    })
-        .on('stderrContent', buf => {
-        console.log('**** STDERR');
-    })
-        .superPipe(b)
-        .on('processed', results => {
-        console.log('**** data 22222');
-    })
-        .on('err', (err, jobID) => {
-        console.log('**** ERROR 22222');
-    })
-        .on('stderrContent', buf => {
-        console.log('**** STDERR 22222');
-    })
-        .pipe(process.stdout);
-};
-var fileToStream = function (fi) {
-    try {
-        var content = fs.readFileSync(fi, 'utf8');
-        content = content.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
-        var s = new stream.Readable();
-        s.push('{ "input" : "');
-        s.push(content);
-        s.push('", "uuid" : "');
-        s.push(uuid);
-        s.push('"}');
-        s.push(null);
-        return s;
-    }
-    catch (err) {
-        throw 'ERROR while opening the file ' + fi + ' :' + err;
-    }
 };
 ///////////// arguments /////////////
 process.argv.forEach(function (val, index, array) {
@@ -122,31 +68,27 @@ if (!bean)
     throw 'No config file specified ! Usage : ' + usage();
 if (!bean.hasOwnProperty('cacheDir') && !cacheDir)
     throw 'No cacheDir specified ! Usage : ' + usage();
-engineType = engineType ? engineType : bean.engineType;
-bean.cacheDir = cacheDir ? cacheDir : bean.cacheDir;
-optCacheDir.push(bean.cacheDir);
 ///////////// management /////////////
-options = {
-    'cacheDir': bean.cacheDir,
-    'tcp': tcp,
-    'port': port
-};
-///////////// jobManager /////////////
-let jobProfile = null; // "arwen_express" or "arwen_cpu" for example
-let management = {
-    'jobManager': jobManager,
-    'jobProfile': jobProfile
-};
-//jobManager.debugOn();
+bean.cacheDir = cacheDir ? cacheDir : bean.cacheDir; // priority for line command argument
 if (b_index)
-    jobManager.index(optCacheDir);
+    optCacheDir.push(bean.cacheDir);
 else
-    jobManager.index(null);
-jobManager.configure({ "engine": engineType, "binaries": bean.binaries });
-jobManager.start(options);
-jobManager.on('exhausted', function () {
+    optCacheDir = null;
+let opt = {
+    'engineType': bean.engineType,
+    'bean': bean,
+    'optCacheDir': optCacheDir
+};
+///////////// run /////////////
+func.JMsetup(opt)
+    .on('ready', (myJM) => {
+    let jobProfile = null; // "arwen_express" or "arwen_cpu" for example
+    let management = {
+        'jobManager': myJM,
+        'jobProfile': jobProfile
+    };
+    func.simpleTest(inputFile, management);
+})
+    .on('exhausted', () => {
     console.log("All jobs processed");
-});
-jobManager.on('ready', function () {
-    simpleTest(management);
 });
