@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# a simple bash script to create a JSON from each line of $inputFile
+# a simple bash script to create a JSON from reversing the $input file
 
 sleep 5
 
@@ -8,7 +8,7 @@ contentInput=`cat $input`
 
 echo "{"
 
-if [ ${#contentInput} -gt 2 ] # IF length of contentFile > 2
+if [ ${#contentInput} -gt 2 ] # IF length of $contentInput > 2
 then
 	i=0;
 	tmp=`for line in $contentInput; do ((i++)); echo "\"myData line $i\" : \"$line\","; done`

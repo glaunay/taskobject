@@ -50,7 +50,10 @@ export class Simple extends tk.Task {
     }
 
     /*
-    * To manage the output(s)
+    * To manage the output(s).
+    * The "input" key is necessary to run correctly in case of simpleTask_1.pipe(simpleTask_2)
+    * because results.input of simpleTask_1 will be used as inputs.input for simpleTask_2. In fact,
+    * the coreScript needs an "$input" variable (specified by the sbatch script, thanks to the JM).
     */
     protected prepareResults (chunk: string): {} {
         var results: {} = {

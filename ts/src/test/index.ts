@@ -104,7 +104,7 @@ export var fileToStream = function (fi: string, uuid?: string): stream.Readable 
         var content: string = fs.readFileSync(fi, 'utf8');
         content = content.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
         var s = new stream.Readable();
-        s.push('{ "input" : "');
+        s.push('{ "input" : "'); // "input" is necessary to run correctly
         s.push(content);
         
         if (uuid) {

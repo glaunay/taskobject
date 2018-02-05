@@ -117,9 +117,9 @@ A Job Manager (JM) is necessary to run a Task. In our case, we use the nslurm pa
 Coming soon...  
 The simpleTask has been implemented only for the tests. It :
 
-1. takes a JSON as entry on its Writable interface (via a pipe, like `x.pipe(simpleTask)`),
-2. splits the JSON line by line,
-3. creates a new JSON : each key is a line number and the value is the corresponding line content,
+1. takes a JSON containing an "input" key as entry on its Writable interface (via a pipe, like `x.pipe(simpleTask)`),
+2. reverses the text of the value corresponding to the "input" key,
+3. creates a new JSON with a "reverse" key, the value being the reversed text,
 4. push this new JSON on its Readable interface. Then we can use a pipe on it, like `simpleTask.pipe(y)`.
 
 

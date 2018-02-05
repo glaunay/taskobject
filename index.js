@@ -456,7 +456,7 @@ class Task extends stream.Duplex {
             }
             if (self.b_test)
                 console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
-            var jsonValue = [jsonVal]; // to adapt to syncProcess modifications
+            var jsonValue = [jsonVal]; // to call self.run() with the same argument types (array of JSON) the syncProcess method do
             self.run(jsonValue) // (4)
                 .on('treated', (results) => {
                 self.shift_jsonContent(streamUsed); // (5)
