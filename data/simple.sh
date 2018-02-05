@@ -6,13 +6,14 @@ sleep 5
 
 contentInput=`cat $input`
 
-echo "{"
+echo -n "{"
 
 if [ ${#contentInput} -gt 2 ] # IF length of $contentInput > 2
 then
-	i=0;
-	tmp=`for line in $contentInput; do ((i++)); echo "\"myData line $i\" : \"$line\","; done`
-	echo $tmp | cut -c1-$(expr ${#tmp} - 1)
+	contentInput=`echo $contentInput | sed s/'"'/''/g`
+	echo -n "\"reverse\":\""
+	echo -n `echo $contentInput | rev`
+	echo -n "\""
 fi
 
-echo "}"
+echo -n "}"
