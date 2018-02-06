@@ -22,12 +22,14 @@ npm install taskobject
 ```
 
 
-## Usage
+## Usage : tests
 
 This module can be used only in the test mode. In fact, the taskobject is an abstract class created as a base to implement bioinformatic tasks using inheritance.  
-The test mode uses a child class of taskobject : the simpleTask (more info in the [More](#more) section).
+The test mode uses a child class of taskobject : the simpleTask (more info in the [More](#more) section).  
+You can either make a test in your proper JS file or use the test file we provide.
 
-### A simple test
+
+### Your proper test
 
 In your JS script, import the test file :
 
@@ -66,6 +68,18 @@ The `simpleTest` method :
 3. pipes the stream on the simpleTask, also piped on `process.stdout`, so you can watch the results in your console.
 
 
+### The test file
+
+The previous test is already implemented in the `./node_modules/taskobject/test/` directory. To use it :
+
+```
+node ./node_modules/taskobject/test.js
+```
+
+This script needs some command line options. You can use option `-u` to display the documentation.
+
+
+
 ## Task developer
 
 ### Installation
@@ -77,27 +91,6 @@ git clone https://github.com/melaniegarnier/taskobject.git
 cd ./taskobject/
 npm install
 ```
-
-### Test
-
-In the `./taskobject/` directory :
-
-```
-node ./test/test.js -h
-```
-
-will provide you the help you need to run the test.
-
-You can use for example :
-
-```
-node ./test/test.js
-	-cache /your/cache/directory/
-	-conf ./node_modules/nslurm/config/arwenConf.json // for the Arwen cluster
-	-file ./test/test.txt // a simple text file
-```
-
-This use the simpleTask created as a task example. A simpleTask 
 
 
 ### Development of your proper task

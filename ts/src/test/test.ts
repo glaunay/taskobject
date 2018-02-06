@@ -22,18 +22,18 @@ var optCacheDir: string[] = [];
 //////////////// usage //////////////////
 var usage = function (): void {
     let str: string = '\n\n********** Test file to run a SimpleTask **********\n\n';
-    str += 'DATE : 2017.12.19\n\n';
+    str += 'DATE : 2018.02.06\n\n';
     str += 'USAGE : (in the TaskObject directory)\n';
-    str += 'node test/test.js\n';
+    str += 'node ./test/test.js\n';
     str += '    -u, to have help\n';
     str += '    -cache [PATH_TO_CACHE_DIRECTORY_FOR_NSLURM], [optional if -conf]\n';
     str += '    -conf [PATH_TO_THE_CLUSTER_CONFIG_FILE_FOR_NSLURM], [not necessary if --emul]\n';
     str += '    -file [PATH_TO_YOUR_INPUT_FILE]\n';
     str += '    --index, to allow indexation of the cache directory of nslurm [optional]\n';
     str += 'EXAMPLE :\n';
-    str += 'node test/test.js\n';
+    str += 'node ./test/test.js\n';
     str += '    -cache /home/mgarnier/tmp/\n';
-    str += '    -conf /home/mgarnier/taskObject_devTests/node_modules/nslurm/config/arwenConf.json\n';
+    str += '    -conf ./node_modules/nslurm/config/arwenConf.json\n';
     str += '    -file ./test/test.txt\n\n';
     str += '**************************************************\n\n';
     console.log(str);
@@ -79,7 +79,6 @@ if (b_index) optCacheDir.push(bean.cacheDir);
 else optCacheDir = null;
 
 let opt: {} = {
-    'engineType' : bean.engineType,
     'bean' : bean,
     'optCacheDir' : optCacheDir
 }
