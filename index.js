@@ -4,7 +4,6 @@
 * settFile must be like :
 {
     "coreScript": "./data/simple.sh",
-    "automaticClosure": false,
     "settings": {}
 }
 
@@ -31,58 +30,55 @@ const fs = require("fs");
 const JSON = require("JSON");
 const jsonfile = require("jsonfile");
 const stream = require("stream");
-class Task extends stream.Duplex {
+const logger_1 = require("./lib/logger");
+const logger_2 = require("./lib/logger");
+class Task extends stream.Readable {
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
     * Initialize the task parameters with values gived by user.
     */
-    constructor(management, syncMode, options) {
+    constructor(management, options) {
         super(options);
-        this.b_test = false; // test mode
         this.jobManager = null; // job manager (engineLayer version)
         this.jobProfile = null; // "arwen_express" for example (see the different config into nslurm module)
         this.syncMode = false; // define the mode : async or not (see next line)
-        this.processFunc = null; // async (process) or synchronous (syncProcess) depending on the mode
         this.streamContent = ''; // content of the stream (concatenated @chunk)
         this.jsonContent = []; // all the whole JSONs found in streamContent
         this.goReading = false; // indicate when the read function can be used
-        this.nextInput = false; // false when the input is not complete // usefull ?
-        this.slotArray = []; // array of streams, each corresponding to an input (piped on this Task)
+        this.slotSymbols = []; // all the slot symbols this task needs
         this.jobsRun = 0; // number of jobs that are still running
         this.jobsErr = 0; // number of jobs that have emitted an error
-        this.rootdir = __dirname;
+        this.rootdir = __dirname; // current directory of @this
         this.staticInputs = null; // to keep a probe PDB for example, given by the options into the constructor
         this.coreScript = null; // path of the core script of the Task
         this.modules = []; // modules needed in the coreScript to run the Task
         this.exportVar = {}; // variables to export, needed in the coreScript of the Task
         this.settFile = null; // file path of the proper settings of the Task
         this.settings = {}; // content of the settFile or other settings if the set() method is used
-        this.automaticClosure = false; // TODO (not implemented yet)
         this.staticTag = null; // tagTask : must be unique between all the Tasks
         if (typeof management == "undefined")
             throw 'ERROR : a literal for job management must be specified';
-        if (typeof syncMode == "undefined")
-            throw 'ERROR : a mode must be specified (sync = true // async = false)';
         if (management.hasOwnProperty('jobManager')) {
             this.jobManager = management.jobManager;
             if (management.hasOwnProperty('jobProfile')) {
                 this.jobProfile = management.jobProfile;
             }
             else {
-                console.log('NEWS : no jobProfile specified -> take default jobProfile for the ' + this.staticTag + ' task.');
+                logger_1.logger.log('INFO', 'no jobProfile specified -> take default jobProfile for the ' + this.staticTag + ' task.');
             }
         }
         else {
             throw 'ERROR : no \'jobManager\' key specified in the job management literal.';
         }
-        // syncMode
-        this.syncMode = syncMode;
-        if (this.syncMode === true)
-            this.processFunc = this.syncProcess;
-        else
-            this.processFunc = this.process;
         // options
         if (typeof options !== 'undefined') {
+            if (options.hasOwnProperty('logLevel')) {
+                let upperLevel = options.logLevel.toUpperCase();
+                if (logger_2.loggerLevels.hasOwnProperty(upperLevel))
+                    logger_1.logger.level = options.logLevel;
+                else
+                    logger_1.logger.log('WARNING', 'the ' + upperLevel + ' level of log does not exist -> taking the default level : ' + logger_1.logger.level);
+            }
             if (options.hasOwnProperty('staticInputs')) {
                 this.staticInputs = options.staticInputs;
             }
@@ -93,17 +89,6 @@ class Task extends stream.Duplex {
                 this.exportVar = options.exportVar;
             }
         }
-    }
-    /*
-    * DO NOT MODIFY
-    * To (in)activate the test mode : (in)activate all the console.log/dir
-    */
-    testMode(bool) {
-        this.b_test = bool;
-        if (this.b_test)
-            console.log('NEWS : Task test mode is activated for task ' + this.staticTag);
-        else
-            console.log('NEWS : Task test mode is off for task ' + this.staticTag);
     }
     /*
     * DO NOT MODIFY
@@ -120,10 +105,16 @@ class Task extends stream.Duplex {
                 userData = data;
             if ('coreScript' in userData)
                 this.coreScript = this.rootdir + '/' + userData.coreScript;
-            if ('automaticClosure' in userData)
-                this.automaticClosure = userData.automaticClosure;
             if ('settings' in userData)
                 this.settings = userData.settings;
+        }
+        // creation of the slots
+        if (this.slotSymbols.length == 0)
+            throw 'ERROR : your task must define at least one slot symbol';
+        else {
+            for (let sym of this.slotSymbols) {
+                this[sym] = this.createSlot(sym);
+            }
         }
     }
     /*
@@ -141,8 +132,6 @@ class Task extends stream.Duplex {
                 userData = data;
             if ('coreScript' in userData)
                 this.coreScript = this.rootdir + '/' + userData.coreScript;
-            if ('automaticClosure' in userData)
-                this.automaticClosure = userData.automaticClosure;
             if ('settings' in userData) {
                 for (var key in userData.settings) {
                     if (this.settings.hasOwnProperty(key))
@@ -155,7 +144,7 @@ class Task extends stream.Duplex {
     }
     /*
     * DO NOT MODIFY
-    * In anticipation of the unique jobManager processus and its monitor mode.ew
+    * In anticipation of the unique jobManager processus and its monitor mode.
     */
     getState() {
         return {
@@ -165,18 +154,6 @@ class Task extends stream.Duplex {
             "stillRunning": this.jobsRun,
             "errorEmitted": this.jobsErr
         };
-    }
-    /*
-    * MUST BE ADAPTED FOR CHILD CLASSES
-    * NOT USED FOR NOW
-    * According to the parameter this.automaticClosure,
-    * close definitely this task or just push the string "null"
-    */
-    pushClosing() {
-        if (this.automaticClosure)
-            this.push(null);
-        else
-            this.push('null');
     }
     /*
     * DO NOT MODIFY
@@ -281,46 +258,48 @@ class Task extends stream.Duplex {
     }
     /*
     * DO NOT MODIFY
-    * Synchronous process method.
+    * Find all the slots in @this and return them into an array (map method).
+    */
+    getSlots() {
+        return this.slotSymbols.map((sym, i, arr) => {
+            return this[sym];
+        });
+    }
+    /*
+    * DO NOT MODIFY
+    * Process method.
     * Use @chunk from @aStream to search for one JSON (at least), and then call the run method.
     */
-    syncProcess(chunk, aStream) {
+    process(chunk, aStream) {
         var emitter = new events.EventEmitter();
         var self = this; // self = this = TaskObject =//= aStream = a slot of self
+        var slotArray = this.getSlots();
         self.feed_streamContent(chunk, aStream);
-        var numOfRun = -1;
-        for (let i in self.slotArray) {
-            var slot_i = self.slotArray[i];
-            if (self.b_test) {
-                console.log("i : " + i);
-                console.log("slotArray[i] : " + slot_i);
-            }
-            self.feed_jsonContent(slot_i);
+        var numOfRun = -1; // the length of the smallest jsonContent among all the slots's jsonContents
+        for (let slt of slotArray) {
+            logger_1.logger.log('DEBUG', 'slotArray[i] : ' + slt);
+            this.feed_jsonContent(slt);
             // take the length of the smallest jsonContent :
             if (numOfRun === -1)
-                numOfRun = slot_i.jsonContent.length;
-            if (slot_i.jsonContent.length < numOfRun)
-                numOfRun = slot_i.jsonContent.length;
+                numOfRun = slt.jsonContent.length;
+            if (slt.jsonContent.length < numOfRun)
+                numOfRun = slt.jsonContent.length;
         }
-        if (self.b_test)
-            console.log("numOfRun : " + numOfRun);
+        logger_1.logger.log('DEBUG', 'numOfRun = ' + numOfRun);
         for (let j = 0; j < numOfRun; j++) {
-            if (self.b_test) {
-                console.log("%%%%%%%%%%%%% here synchronous process");
-                console.log("j : " + j);
-            }
-            var inputsTab = [];
-            for (let k in self.slotArray) {
-                inputsTab.push(self.slotArray[k].jsonContent[j]);
-            }
+            logger_1.logger.log('INFO', '***** synchronous process');
+            logger_1.logger.log('DEBUG', 'j = ' + j);
+            var inputArray = slotArray.map((slt, i, arr) => {
+                return slt.jsonContent[i];
+            });
             // for tests
-            //inputsTab = [ { "inputFile": '{\n"myData line 1" : "titi"\n}\n' }, { "inputFile2": '{\n"myData line 1" : "tata"\n}\n' } ]
+            //inputArray = [ { "input": '{\n"myData line 1" : "titi"\n}\n' }, { "input2": '{\n"myData line 1" : "tata"\n}\n' } ]
             // end of tests
-            if (self.b_test)
-                console.log(inputsTab);
-            self.run(inputsTab)
+            logger_1.logger.log('DEBUG', JSON.stringify(inputArray));
+            self.run(inputArray)
                 .on('treated', results => {
-                self.applyOnArray(self.shift_jsonContent, self.slotArray);
+                // remove the first element in the jsonContent of every slots :
+                self.applyOnArray(self.shift_jsonContent, slotArray);
                 emitter.emit('processed');
             })
                 .on('error', (err) => {
@@ -347,10 +326,7 @@ class Task extends stream.Duplex {
         var self = this;
         var streamUsed = typeof aStream != "undefined" ? aStream : self;
         streamUsed.streamContent += chunk;
-        if (self.b_test) {
-            console.log('streamContent :');
-            console.log(streamUsed.streamContent);
-        }
+        logger_1.logger.log('DBEUG', 'streamContent : ' + streamUsed.streamContent);
     }
     /*
     * DO NOT MODIFY
@@ -360,54 +336,40 @@ class Task extends stream.Duplex {
         var self = this;
         var streamUsed = typeof aStream != "undefined" ? aStream : self;
         var results = this.findJson(streamUsed.streamContent); // search for JSON
-        if (self.b_test)
-            console.log(results);
+        logger_1.logger.log('DEBUG', 'results = ' + results);
         if (results.jsonTab.length < 1)
             return; // if there is no JSON at all, bye bye
         streamUsed.jsonContent = streamUsed.jsonContent.concat(results.jsonTab); // take all the JSON detected ...
         streamUsed.streamContent = results.rest; // ... and keep the rest into streamContent
-        if (self.b_test) {
-            console.log('jsonContent :');
-            console.dir(streamUsed.jsonContent);
-        }
+        logger_1.logger.log('DEBUG', 'jsonContent = ' + streamUsed.jsonContent);
     }
     /*
     * DO NOT MODIFY
-    * (1) check if the @jsonValue is null to close the stream : not implemented = see TODO
-    * (2) prepare the job = by setting options & creating files for the task
-    * (3) run
-    * (4) receive all the data
-    * (5) at the end of the reception, prepare the results & send
+    * (1) prepare the job = by setting options & creating files for the task
+    * (2) run
+    * (3) receive all the data
+    * (4) at the end of the reception, prepare the results & send
     */
     run(jsonValue) {
         var emitter = new events.EventEmitter();
         var self = this;
         var job_uuid = null; // in case a uuid is passed
-        // if (jsonValue === 'null' || jsonValue === 'null\n') { // (1)
-        // 	self.pushClosing();
-        // } else {
-        var jobOpt = self.prepareJob(jsonValue); // (2) // jsonValue = array of JSONs
+        var jobOpt = self.prepareJob(jsonValue); // (1) // jsonValue = array of JSONs
         if (jobOpt.inputs.hasOwnProperty('uuid')) {
             job_uuid = jobOpt.inputs.uuid;
             delete jobOpt.inputs['uuid'];
         }
-        if (self.b_test) {
-            console.log("jobOpt :");
-            console.log(jobOpt);
-        }
-        var j = self.jobManager.push(self.jobProfile, jobOpt, job_uuid); // (3)
+        logger_1.logger.log('DEBUG', 'jobOpt = ' + jobOpt);
+        var j = self.jobManager.push(self.jobProfile, jobOpt, job_uuid); // (2)
         j.on('completed', (stdout, stderr, jobObject) => {
             if (stderr) {
                 stderr.on('data', buf => {
-                    if (self.b_test) {
-                        console.error('stderr content : ');
-                        console.error(buf.toString());
-                    }
+                    logger_1.logger.log('ERROR', 'stderr content = \n' + buf.toString());
                     emitter.emit('stderrContent', buf);
                 });
             }
             var chunk = '';
-            stdout.on('data', buf => { chunk += buf.toString(); }); // (4)
+            stdout.on('data', buf => { chunk += buf.toString(); }); // (3)
             stdout.on('end', () => {
                 self.async(function () {
                     var res = self.prepareResults(chunk);
@@ -422,127 +384,44 @@ class Task extends stream.Duplex {
             });
         });
         j.on('jobError', (stdout, stderr, j) => {
-            console.log('job ' + j.id + ' : ' + stderr);
+            logger_1.logger.log('ERROR', 'job ' + j.id + ' : ' + stderr);
             emitter.emit('error', stderr, j.id);
         });
         j.on('lostJob', (msg, j) => {
-            console.log('job ' + j.id + ' : ' + msg);
+            logger_1.logger.log('ERROR', 'job ' + j.id + ' : ' + msg);
             emitter.emit('lostJob', msg, j.id);
         });
-        // }
         return emitter;
-    }
-    /*
-    * DO NOT MODIFY
-    * (1) use @aStream (first choice) or @this (second choice)
-    * (2) consume @chunk
-    * (3) look at every JSON object we found into the @jsonContent of @streamUsed
-    * (4) treat it
-    * (5) remove the jsonContent
-    */
-    process(chunk, aStream) {
-        var emitter = new events.EventEmitter();
-        var self = this;
-        var streamUsed = typeof aStream != "undefined" ? aStream : self; // (1)
-        this.feed_streamContent(chunk, streamUsed); // (2)
-        this.feed_jsonContent(streamUsed); // (2)
-        streamUsed.jsonContent.forEach((jsonVal, i, array) => {
-            if (self.b_test)
-                console.log("%%%%%%%%%%%% hello i am processing asynchronous");
-            if (self.syncMode === true) {
-                console.log("WARNING : ASYNC process method is running for an object configured in SYNC mode");
-                console.log("WARNING : (due to the used of write or pipe method)");
-                //console.log(this);
-            }
-            if (self.b_test)
-                console.log('######> i = ' + i + '<#>' + jsonValue + '<######');
-            var jsonValue = [jsonVal]; // to call self.run() with the same argument types (array of JSON) the syncProcess method do
-            self.run(jsonValue) // (4)
-                .on('treated', (results) => {
-                self.shift_jsonContent(streamUsed); // (5)
-                emitter.emit('processed', results);
-            })
-                .on('error', (err, jobID) => {
-                emitter.emit('error', err, jobID);
-            })
-                .on('stderrContent', (buf) => {
-                emitter.emit('stderrContent', buf);
-            })
-                .on('lostJob', (msg, jid) => {
-                emitter.emit('lostJob', msg, jid);
-            });
-        });
-        return emitter;
-    }
-    /*
-    * DO NOT MODIFY
-    * Necessary to use anotherTask.pipe(task)
-    */
-    _write(chunk, encoding, callback) {
-        var self = this;
-        if (self.b_test)
-            console.log(self.staticTag + ' >>>>> write');
-        self.process(chunk) // obligatory asynchronous when using a anotherTask.pipe(this)
-            .on('processed', results => {
-            self.emit('processed', results);
-        })
-            .on('error', (err, jobID) => {
-            self.emit('err', err, jobID);
-        })
-            .on('stderrContent', buf => {
-            self.emit('stderrContent', buf);
-        })
-            .on('lostJob', (msg, jid) => {
-            self.emit('lostJob', msg, jid);
-        });
-        callback();
-        return self;
     }
     /*
     * DO NOT MODIFY
     * Necessary to use task.pipe(anotherTask)
     */
     _read(size) {
-        if (this.b_test)
-            console.log('>>>>> read');
+        logger_1.logger.log('DEBUG', '>>>>> read from ' + this.staticTag);
         if (this.goReading) {
-            if (this.b_test)
-                console.log('>>>>> read: this.goReading is F');
+            logger_1.logger.log('DEBUG', '>>>>> read: this.goReading is F from ' + this.staticTag);
             this.goReading = false;
         }
     }
     /*
     * DO NOT MODIFY
-    * Add a slot to the Task on which is realized the superPipe (@s).
-    * So @s must be an instance of TaskObject !
+    * Slot = a new writable stream to receive one type of data (= one input)
     */
-    superPipe(s) {
-        if (s instanceof Task) {
-            s.addSlot(this);
-        }
-        else {
-            throw "ERROR : Wrong use of superPipe method. In a.superPipe(b), b should be an instance of TaskObject";
-        }
-        return s;
-    }
-    /*
-    * DO NOT MODIFY
-    * Slot = a new duplex to receive one type of data
-    */
-    addSlot(previousTask) {
-        class slot extends stream.Duplex {
-            constructor(options) {
+    createSlot(symbol) {
+        var self = this;
+        class slot extends stream.Writable {
+            constructor(symbol, options) {
                 super(options);
                 this.goReading = false;
                 this.streamContent = '';
-                this.jsonContent = [];
+                this.jsonContent = []; // array of JSONs
+                if (typeof symbol == 'undefined')
+                    throw 'ERROR : a symbol must be specified !';
+                this.symbol = symbol;
             }
             _write(chunk, encoding, callback) {
-                if (self.b_test) {
-                    console.log("processFunc = ");
-                    console.log(self.processFunc);
-                }
-                self.processFunc(chunk, this)
+                self.process(chunk, this)
                     .on('processed', s => {
                     self.emit('processed', s);
                 })
@@ -557,12 +436,8 @@ class Task extends stream.Duplex {
                 });
                 callback();
             }
-            _read(size) { } // we never use this method but we have to implement it
         }
-        var self = this;
-        var stream_tmp = new slot();
-        self.slotArray.push(stream_tmp);
-        previousTask.pipe(stream_tmp);
+        return new slot(symbol);
     }
     /*
     * Try to kill the job(s) of this task
@@ -575,7 +450,7 @@ class Task extends stream.Duplex {
         'listError': an error occur  while listing processes corresponding to pending jobs
     */
     kill(managerSettings) {
-        console.log('ERROR : The kill method is not implemented yet');
+        logger_1.logger.log('ERROR', 'The kill method is not implemented yet');
         var emitter = new events.EventEmitter();
         this.jobManager.stop(managerSettings, this.staticTag)
             .on('cleanExit', function () {
@@ -590,8 +465,6 @@ class Task extends stream.Duplex {
             .on('errSqueue', function () {
             emitter.emit('errSqueue');
         });
-        if (this.b_test)
-            console.log(emitter);
         return emitter;
     }
     /*
@@ -631,10 +504,7 @@ class Task extends stream.Duplex {
                 newJson[key] = jsonTab[i][key];
             }
         }
-        if (this.b_test) {
-            console.log("newjson :");
-            console.log(newJson);
-        }
+        logger_1.logger.log('DEBUG', 'newJson = ' + newJson);
         return newJson;
     }
     /*
@@ -654,7 +524,7 @@ class Task extends stream.Duplex {
             return dict;
         }
         catch (err) {
-            console.log('ERROR in parseJsonFile() :\n' + err);
+            logger_1.logger.log('ERROR', 'in parseJsonFile() :\n' + err);
             return null;
         }
     }
@@ -667,7 +537,7 @@ class Task extends stream.Duplex {
             return JSON.parse(data);
         }
         catch (err) {
-            console.log('ERROR in parseJson() :\n' + err);
+            logger_1.logger.log('ERROR', 'in parseJson() :\n' + err);
             return null;
         }
     }
@@ -680,7 +550,7 @@ class Task extends stream.Duplex {
             fs.writeFileSync(file, fileContent);
         }
         catch (err) {
-            console.log('ERROR while writing the file ' + file + ' :\n' + err);
+            logger_1.logger.log('ERROR', 'while writing the file ' + file + ' :\n' + err);
         }
     }
     /*
@@ -692,7 +562,7 @@ class Task extends stream.Duplex {
             fs.mkdirSync(dir);
         }
         catch (err) {
-            console.log('ERROR while creating the directory ' + dir + ' :\n' + err);
+            logger_1.logger.log('ERROR', 'while creating the directory ' + dir + ' :\n' + err);
         }
     }
     /*
@@ -703,8 +573,8 @@ class Task extends stream.Duplex {
         let rs = fs.createReadStream(src);
         let ws = fs.createWriteStream(dest);
         rs.pipe(ws);
-        rs.on("error", (err) => { console.log('ERROR in copyFile while reading the file ' + src + ' :\n' + err); });
-        ws.on("error", function (err) { console.log('ERROR in copyFile while writing the file ' + dest + ' :\n' + err); });
+        rs.on("error", (err) => { logger_1.logger.log('ERROR', 'in copyFile while reading the file ' + src + ' :\n' + err); });
+        ws.on("error", function (err) { logger_1.logger.log('ERROR', 'in copyFile while writing the file ' + dest + ' :\n' + err); });
     }
     /*
     * DO NOT MODIFY

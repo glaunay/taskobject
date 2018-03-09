@@ -17,17 +17,21 @@ import stream = require ('stream');
 */
 export var simpleTest = function (inputFile, management) {
 	//var uuid: string = "67593282-c4a4-4fd0-8861-37d8548ce236"; // defined arbitrary but for tests
-    let syncMode: boolean = true;
+    ///// let syncMode: boolean = true; // NOT USED ANYMROE
 
-    var a = new sim.Simple (management, syncMode);
-    //a.testMode(true);
-    //var b = new sim.Simple (management, syncMode); // for superPipe() tests
-    //b.testMode(true);
+    var a = new sim.Simple(management);
+    //console.log(a.input);
+    console.log(a)
 
-    // pipeline
+    //var b = new sim.Simple (management); // for superPipe() tests
+    
+    ///////////// pipeline /////////////
+
     //process.stdin.pipe(a); // {"input" : "toto"} for example
+
     //fileToStream(inputFile, uuid).pipe(a)
-    fileToStream(inputFile).pipe(a)
+
+    fileToStream(inputFile).pipe(a.input) // DOES NOT WOOOOOOOOOOORRRRRRKKKKKKKKKK !!!!!!!!!!!!!!!!
     .on('processed', results => {
         console.log('**** data');
     })
@@ -36,8 +40,9 @@ export var simpleTest = function (inputFile, management) {
     })
     .on('stderrContent', buf => {
         console.log('**** STDERR');
-    })
-    // .superPipe(b)
+    });
+
+    // a.superPipe(b)
     // .on('processed', results => {
     //     console.log('**** data 22222');
     // })
@@ -46,8 +51,9 @@ export var simpleTest = function (inputFile, management) {
     // })
     // .on('stderrContent', buf => {
     //     console.log('**** STDERR 22222');
-    // })
-    .pipe(process.stdout);
+    // });
+
+    a.pipe(process.stdout);
 
 }
 

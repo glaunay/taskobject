@@ -31,16 +31,24 @@ import tk = require ('../index');
 declare var __dirname;
 
 export class Simple extends tk.Task {
+    public readonly input;
+
 	/*
 	* Initialize the task parameters.
 	*/
-	public constructor (management: any, syncMode: boolean, options?: any) {
-		super(management, syncMode, options);
-        this.rootdir = __dirname;
-        this.settFile = this.rootdir + '/../data/settings.json';
-        super.init(this.settFile);
-        this.staticTag = 'simple';
+	public constructor (management: any, options?: any) {
+		super(management, options); // constructor of the tk.Task Object
+        this.rootdir = __dirname; // always take the current directory of the task...
+        this.settFile = this.rootdir + '/../data/settings.json'; // ... to find the path to the settings file
+        this.staticTag = 'simpletask'; // unique !
+        
+        /* Creation of the slot symbols : only one here */
+        this.slotSymbols = ['input'];
+
+        super.init(this.settFile); // always init() with the settings file at the end of the constructor
 	}
+
+
 
     /*
     * Here manage the input(s)

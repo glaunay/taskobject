@@ -1,6 +1,4 @@
 "use strict";
-/// <reference path="../../typings/index.d.ts" />
-Object.defineProperty(exports, "__esModule", { value: true });
 /*
 TO RUN :
 node /path/to/this/script/test.js -cache /path/to/cache/tmp/ [optional if -conf]
@@ -8,6 +6,7 @@ node /path/to/this/script/test.js -cache /path/to/cache/tmp/ [optional if -conf]
                                 -file /path/to/your/file.txt
                                 --index // to allow indexation of the cache directory of nslurm [optional]
 */
+Object.defineProperty(exports, "__esModule", { value: true });
 const jsonfile = require("jsonfile");
 const func = require("./index");
 var cacheDir = null, bean = null, inputFile = null, b_index = false;

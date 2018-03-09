@@ -1,5 +1,3 @@
-/// <reference path="../../typings/index.d.ts" />
-
 /*
 TO RUN :
 node /path/to/this/script/test.js -cache /path/to/cache/tmp/ [optional if -conf]

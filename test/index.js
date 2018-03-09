@@ -16,15 +16,16 @@ const stream = require("stream");
 */
 exports.simpleTest = function (inputFile, management) {
     //var uuid: string = "67593282-c4a4-4fd0-8861-37d8548ce236"; // defined arbitrary but for tests
-    let syncMode = true;
-    var a = new sim.Simple(management, syncMode);
-    //a.testMode(true);
-    //var b = new sim.Simple (management, syncMode); // for superPipe() tests
+    ///// let syncMode: boolean = true; // NOT USED ANYMROE
+    var a = new sim.Simple(management);
+    //console.log(a.input);
+    console.log(a);
+    //var b = new sim.Simple (management); // for superPipe() tests
     //b.testMode(true);
-    // pipeline
+    ///////////// pipeline /////////////
     //process.stdin.pipe(a); // {"input" : "toto"} for example
     //fileToStream(inputFile, uuid).pipe(a)
-    exports.fileToStream(inputFile).pipe(a)
+    exports.fileToStream(inputFile).pipe(a.input) // DOES NOT WOOOOOOOOOOORRRRRRKKKKKKKKKK !!!!!!!!!!!!!!!!
         .on('processed', results => {
         console.log('**** data');
     })
@@ -33,8 +34,18 @@ exports.simpleTest = function (inputFile, management) {
     })
         .on('stderrContent', buf => {
         console.log('**** STDERR');
-    })
-        .pipe(process.stdout);
+    });
+    // a.superPipe(b)
+    // .on('processed', results => {
+    //     console.log('**** data 22222');
+    // })
+    // .on('err', (err, jobID) => {
+    //     console.log('**** ERROR 22222');
+    // })
+    // .on('stderrContent', buf => {
+    //     console.log('**** STDERR 22222');
+    // });
+    a.pipe(process.stdout);
 };
 /*
 * Function to run jobManager.

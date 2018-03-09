@@ -1,5 +1,4 @@
 {
 	"coreScript" : "/../data/simple.sh",
-	"automaticClosure" : false,
 	"settings" : {}
 }

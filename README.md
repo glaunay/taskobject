@@ -97,6 +97,16 @@ npm install
 
 Coming soon...
 
+#### Inherit from Task
+
+In the constructor of your child class :
+1. call the parent class constructor : `super(management, options)`
+2. take the current directory of your child class : `this.rootdir = __dirname`
+3. construct the path to the setting file of your child class : `this.settFile = this.rootdir + '/../data/settings.json';`
+4. define a tag to your child class : `this.staticTag = 'myChildClass'`
+5. define all the input you need to run the calculations of your child class, by creating a symbol for each input in the `slotSymbols` array : `this.slotSymbols = ['myInput']`
+6. end with the call to the init method : `super.init(this.settFile)`
+
 
 ## More
 
