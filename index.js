@@ -49,7 +49,6 @@ class Task extends stream.Readable {
         this.jobsRun = 0; // number of jobs that are still running
         this.jobsErr = 0; // number of jobs that have emitted an error
         this.rootdir = __dirname; // current directory of @this
-        this.staticInputs = null; // to keep a probe PDB for example, given by the options into the constructor
         this.coreScript = null; // path of the core script of the Task
         this.modules = []; // modules needed in the coreScript to run the Task
         this.exportVar = {}; // variables to export, needed in the coreScript of the Task
@@ -78,9 +77,6 @@ class Task extends stream.Readable {
                     logger_1.logger.level = options.logLevel;
                 else
                     logger_1.logger.log('WARNING', 'the ' + upperLevel + ' level of log does not exist -> taking the default level : ' + logger_1.logger.level);
-            }
-            if (options.hasOwnProperty('staticInputs')) {
-                this.staticInputs = options.staticInputs;
             }
             if (options.hasOwnProperty('modules')) {
                 this.modules = options.modules;
