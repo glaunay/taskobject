@@ -21,7 +21,6 @@ exports.simpleTest = function (inputFile, management) {
     //console.log(a.input);
     console.log(a);
     //var b = new sim.Simple (management); // for superPipe() tests
-    //b.testMode(true);
     ///////////// pipeline /////////////
     //process.stdin.pipe(a); // {"input" : "toto"} for example
     //fileToStream(inputFile, uuid).pipe(a)

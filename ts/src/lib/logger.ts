@@ -37,8 +37,8 @@ var colors = {
 }
 
 export var logger = new (win.Logger)({
-    loggerLevels,
-    colors,
+    levels: loggerLevels,
+    colors: colors,
     level: defaultLevel,
     transports: [
         new (win.transports.Console)({
