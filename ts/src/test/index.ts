@@ -9,6 +9,7 @@ import fs = require ('fs');
 import jobManager = require ('nslurm');
 import localIP = require ('my-local-ip');
 import sim = require ('./simpleTask');
+import du = require ('./dualTask');
 import stream = require ('stream');
 
 
@@ -17,7 +18,6 @@ import stream = require ('stream');
 */
 export var simpleTest = function (inputFile, management) {
 	//var uuid: string = "67593282-c4a4-4fd0-8861-37d8548ce236"; // defined arbitrary but for tests
-    ///// let syncMode: boolean = true; // NOT USED ANYMROE
 
     var a = new sim.Simple(management);
     //console.log(a.input);
@@ -31,7 +31,7 @@ export var simpleTest = function (inputFile, management) {
 
     //fileToStream(inputFile, uuid).pipe(a)
 
-    fileToStream(inputFile).pipe(a.input) // DOES NOT WOOOOOOOOOOORRRRRRKKKKKKKKKK !!!!!!!!!!!!!!!!
+    fileToStream(inputFile, "input").pipe(a.input)
     .on('processed', results => {
         console.log('**** data');
     })
@@ -52,6 +52,40 @@ export var simpleTest = function (inputFile, management) {
     // .on('stderrContent', buf => {
     //     console.log('**** STDERR 22222');
     // });
+
+    a.pipe(process.stdout);
+
+}
+
+
+/*
+* USED TO test the dual inputs (dual slots in task)
+* @management [literal] composed of 2 manadatory keys : 'jobManager' and 'jobProfile'
+*/
+export var dualTest = function (inputFile1, inputFile2, management) {
+    //var uuid: string = "67593282-c4a4-4fd0-8861-37d8548ce236"; // defined arbitrary but for tests
+
+    var a = new du.Dual(management, {'logLevel': 'info'});
+    console.log(a)
+    
+    ///////////// pipeline /////////////
+
+    //process.stdin.pipe(a); // {"input1" : "toto"} for example
+
+    //fileToStream(inputFile, uuid).pipe(a.input1)
+
+    fileToStream(inputFile1, "input1").pipe(a.input1)
+    fileToStream(inputFile2, "input2").pipe(a.input2)
+    
+    a.on('processed', results => {
+        console.log('**** data');
+    })
+    .on('err', (err, jobID) => {
+        console.log('**** ERROR');
+    })
+    .on('stderrContent', buf => {
+        console.log('**** STDERR');
+    });
 
     a.pipe(process.stdout);
 
@@ -103,14 +137,14 @@ export var JMsetup = function (opt?: any): events.EventEmitter {
 }
 
 /*
-* Take a file @fi, put its content into a readable stream with a @uuid is specified.
+* Take a file @fi, put its content into a readable stream, in JSON format, with a @uuid if specified.
 */
-export var fileToStream = function (fi: string, uuid?: string): stream.Readable {
+export var fileToStream = function (fi: string, key: string, uuid?: string): stream.Readable {
     try {
         var content: string = fs.readFileSync(fi, 'utf8');
         content = content.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
         var s = new stream.Readable();
-        s.push('{ "input" : "'); // "input" is necessary to run correctly
+        s.push('{ "' + key + '" : "');
         s.push(content);
         
         if (uuid) {

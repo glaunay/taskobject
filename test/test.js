@@ -9,11 +9,11 @@ node /path/to/this/script/test.js -cache /path/to/cache/tmp/ [optional if -conf]
 Object.defineProperty(exports, "__esModule", { value: true });
 const jsonfile = require("jsonfile");
 const func = require("./index");
-var cacheDir = null, bean = null, inputFile = null, b_index = false;
+var cacheDir = null, bean = null, inputFile = null, inputFile2 = null, b_index = false;
 var optCacheDir = [];
 //////////////// usage //////////////////
 var usage = function () {
-    let str = '\n\n********** Test file to run a SimpleTask **********\n\n';
+    let str = '\n\n********** Test file to run a SimpleTask or a DualTask **********\n\n';
     str += 'DATE : 2018.02.06\n\n';
     str += 'USAGE : (in the TaskObject directory)\n';
     str += 'node ./test/test.js\n';
@@ -21,12 +21,19 @@ var usage = function () {
     str += '    -cache [PATH_TO_CACHE_DIRECTORY_FOR_NSLURM], [optional if -conf]\n';
     str += '    -conf [PATH_TO_THE_CLUSTER_CONFIG_FILE_FOR_NSLURM], [not necessary if --emul]\n';
     str += '    -file [PATH_TO_YOUR_INPUT_FILE]\n';
-    str += '    --index, to allow indexation of the cache directory of nslurm [optional]\n';
-    str += 'EXAMPLE :\n';
+    str += '    -file2 [PATH_TO_YOUR_INPUT_FILE NUMBER 2], [optional for a simple test]\n';
+    str += '    --index, to allow indexation of the cache directory of nslurm [optional]\n\n';
+    str += 'EXAMPLE FOR A SIMPLE TEST:\n';
     str += 'node ./test/test.js\n';
     str += '    -cache /home/mgarnier/tmp/\n';
     str += '    -conf ./node_modules/nslurm/config/arwenConf.json\n';
     str += '    -file ./test/test.txt\n\n';
+    str += 'EXAMPLE FOR A DUAL TEST:\n';
+    str += 'node ./test/test.js\n';
+    str += '    -cache /home/mgarnier/tmp/\n';
+    str += '    -conf ./node_modules/nslurm/config/arwenConf.json\n';
+    str += '    -file ./test/test.txt\n\n';
+    str += '    -file2 ./test/test2.txt\n\n';
     str += '**************************************************\n\n';
     console.log(str);
 };
@@ -57,6 +64,11 @@ process.argv.forEach(function (val, index, array) {
             throw 'usage : ' + usage();
         inputFile = array[index + 1];
     }
+    if (val === '-file2') {
+        if (!array[index + 1])
+            throw 'usage : ' + usage();
+        inputFile2 = array[index + 1];
+    }
     if (val === '--index') {
         b_index = true;
     }
@@ -85,7 +97,10 @@ func.JMsetup(opt)
         'jobManager': myJM,
         'jobProfile': jobProfile
     };
-    func.simpleTest(inputFile, management);
+    if (!inputFile2)
+        func.simpleTest(inputFile, management); // if no inputFile2 -> simple test
+    else
+        func.dualTest(inputFile, inputFile2, management); // if inputFile2 -> dual test
 })
     .on('exhausted', () => {
     console.log("All jobs processed");

@@ -2,7 +2,7 @@
 
 # a simple bash script to create a JSON from reversing the $input file
 
-sleep 5
+sleep 5 # to have the time to watch the job in the queue
 
 contentInput=`cat $input`
 

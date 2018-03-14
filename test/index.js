@@ -10,13 +10,13 @@ const fs = require("fs");
 const jobManager = require("nslurm");
 const localIP = require("my-local-ip");
 const sim = require("./simpleTask");
+const du = require("./dualTask");
 const stream = require("stream");
 /*
 * @management [literal] composed of 2 manadatory keys : 'jobManager' and 'jobProfile'
 */
 exports.simpleTest = function (inputFile, management) {
     //var uuid: string = "67593282-c4a4-4fd0-8861-37d8548ce236"; // defined arbitrary but for tests
-    ///// let syncMode: boolean = true; // NOT USED ANYMROE
     var a = new sim.Simple(management);
     //console.log(a.input);
     console.log(a);
@@ -24,7 +24,7 @@ exports.simpleTest = function (inputFile, management) {
     ///////////// pipeline /////////////
     //process.stdin.pipe(a); // {"input" : "toto"} for example
     //fileToStream(inputFile, uuid).pipe(a)
-    exports.fileToStream(inputFile).pipe(a.input) // DOES NOT WOOOOOOOOOOORRRRRRKKKKKKKKKK !!!!!!!!!!!!!!!!
+    exports.fileToStream(inputFile, "input").pipe(a.input)
         .on('processed', results => {
         console.log('**** data');
     })
@@ -44,6 +44,29 @@ exports.simpleTest = function (inputFile, management) {
     // .on('stderrContent', buf => {
     //     console.log('**** STDERR 22222');
     // });
+    a.pipe(process.stdout);
+};
+/*
+* @management [literal] composed of 2 manadatory keys : 'jobManager' and 'jobProfile'
+*/
+exports.dualTest = function (inputFile1, inputFile2, management) {
+    //var uuid: string = "67593282-c4a4-4fd0-8861-37d8548ce236"; // defined arbitrary but for tests
+    var a = new du.Dual(management, { 'logLevel': 'info' });
+    console.log(a);
+    ///////////// pipeline /////////////
+    //process.stdin.pipe(a); // {"input1" : "toto"} for example
+    //fileToStream(inputFile, uuid).pipe(a.input1)
+    exports.fileToStream(inputFile1, "input1").pipe(a.input1);
+    exports.fileToStream(inputFile2, "input2").pipe(a.input2);
+    a.on('processed', results => {
+        console.log('**** data');
+    })
+        .on('err', (err, jobID) => {
+        console.log('**** ERROR');
+    })
+        .on('stderrContent', buf => {
+        console.log('**** STDERR');
+    });
     a.pipe(process.stdout);
 };
 /*
@@ -94,14 +117,14 @@ exports.JMsetup = function (opt) {
     return emitter;
 };
 /*
-* Take a file @fi, put its content into a readable stream with a @uuid is specified.
+* Take a file @fi, put its content into a readable stream, in JSON format, with a @uuid if specified.
 */
-exports.fileToStream = function (fi, uuid) {
+exports.fileToStream = function (fi, key, uuid) {
     try {
         var content = fs.readFileSync(fi, 'utf8');
         content = content.replace(/\n/g, '\\n').replace(/\r/g, '\\r');
         var s = new stream.Readable();
-        s.push('{ "input" : "'); // "input" is necessary to run correctly
+        s.push('{ "' + key + '" : "');
         s.push(content);
         if (uuid) {
             s.push('", "uuid" : "');

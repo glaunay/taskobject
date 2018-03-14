@@ -36,6 +36,7 @@ import fs = require ('fs');
 import JSON = require ('JSON');
 import jsonfile = require ('jsonfile');
 import stream = require ('stream');
+import util = require('util');
 import uuid = require('uuid/v4');
 
 import { logger } from './lib/logger';
@@ -84,7 +85,7 @@ export abstract class Task extends stream.Readable {
 		if (typeof options !== 'undefined') {
 			if (options.hasOwnProperty('logLevel')) {
 				let upperLevel = options.logLevel.toUpperCase();
-				if (loggerLevels.hasOwnProperty(upperLevel)) logger.level = options.logLevel;
+				if (loggerLevels.hasOwnProperty(upperLevel)) logger.level = upperLevel;
 				else logger.log('WARNING', 'the ' + upperLevel + ' level of log does not exist -> taking the default level : ' + logger.level);
             }
             if (options.hasOwnProperty('modules')) {
@@ -280,8 +281,8 @@ export abstract class Task extends stream.Readable {
 		var numOfRun: number = -1; // the length of the smallest jsonContent among all the slots's jsonContents
 
 		for (let slt of slotArray) { // for each slot
-			logger.log('DEBUG', 'slotArray[i] : ' + slt);
-			this.feed_jsonContent(slt);
+			logger.log('DEBUG', 'slotArray[i] : \n' + util.format(slt));
+			self.feed_jsonContent(slt);
 			// take the length of the smallest jsonContent :
 			if (numOfRun === -1) numOfRun = slt.jsonContent.length;
 			if (slt.jsonContent.length < numOfRun) numOfRun = slt.jsonContent.length;
@@ -292,14 +293,12 @@ export abstract class Task extends stream.Readable {
 			logger.log('INFO', '***** synchronous process');
 			logger.log('DEBUG', 'j = ' + j);
 
-			var inputArray = slotArray.map((slt, i, arr) => {
-				return slt.jsonContent[i]
-			});
+			var inputArray = slotArray.map((slt) => slt.jsonContent[j] );
 
 			// for tests
 			//inputArray = [ { "input": '{\n"myData line 1" : "titi"\n}\n' }, { "input2": '{\n"myData line 1" : "tata"\n}\n' } ]
 			// end of tests
-			logger.log('DEBUG', JSON.stringify(inputArray));
+			logger.log('DEBUG', 'inputArray = \n' + util.format(inputArray));
 
 			self.run(inputArray)
 			.on('treated', results => {
@@ -344,13 +343,13 @@ export abstract class Task extends stream.Readable {
 		var streamUsed = typeof aStream != "undefined" ? aStream : self;
 
 		var results = this.findJson(streamUsed.streamContent); // search for JSON
-		logger.log('DEBUG', 'results = ' + results)
+		logger.log('DEBUG', 'results = \n' + util.format(results));
 
 		if (results.jsonTab.length < 1) return; // if there is no JSON at all, bye bye
 		streamUsed.jsonContent = streamUsed.jsonContent.concat(results.jsonTab); // take all the JSON detected ...
 		streamUsed.streamContent = results.rest; // ... and keep the rest into streamContent
 		
-		logger.log('DEBUG', 'jsonContent = ' + streamUsed.jsonContent);
+		logger.log('DEBUG', 'jsonContent of ' + streamUsed.symbol + ' = \n' + util.format(streamUsed.jsonContent));
 	}
 
 	/*
@@ -370,7 +369,7 @@ export abstract class Task extends stream.Readable {
 			job_uuid = jobOpt.inputs.uuid;
 			delete jobOpt.inputs['uuid'];
 		}
-		logger.log('DEBUG', 'jobOpt = ' + jobOpt);
+		logger.log('DEBUG', 'jobOpt = ' + JSON.stringify(jobOpt));
 
 		var j = self.jobManager.push(self.jobProfile, jobOpt, job_uuid); // (2)
 		j.on('completed', (stdout, stderr, jobObject) => {
@@ -514,13 +513,15 @@ export abstract class Task extends stream.Readable {
 	*/
 	private concatJson (jsonTab: {}[]): {} {
 		var newJson: {} = {};
+		logger.log('DEBUG', 'json array to concatenate = \n' + util.format(jsonTab));
+
 		for (let i = 0; i < jsonTab.length; i ++) {
 	    	for (let key in jsonTab[i]) {
 	    		if (newJson.hasOwnProperty(key)) throw 'ERROR with jsonTab in concatJson() : 2 JSON have the same key';
 	    		newJson[key] = jsonTab[i][key];
 	    	}
 	    }
-	    logger.log('DEBUG', 'newJson = ' + newJson);
+	    logger.log('DEBUG', 'newJson = \n' + util.format(newJson));
 	    return newJson;
 	}
 
