@@ -6,7 +6,9 @@ First time you use this script ? Use this :
 Object.defineProperty(exports, "__esModule", { value: true });
 const commander = require("commander");
 const jsonfile = require("jsonfile");
+const util = require("util");
 const func = require("./index");
+const logger_1 = require("../lib/logger");
 var cacheDir = null, bean = null, inputFile = null, inputFile2 = null, b_index = false;
 var optCacheDir = [];
 //////////////// usage //////////////////
@@ -37,8 +39,7 @@ commander
         bean = jsonfile.readFileSync(val);
     }
     catch (err) {
-        console.log('ERROR while reading the config file :');
-        console.log(err);
+        logger_1.logger.log('ERROR', 'ERROR while reading the config file : \n' + util.format(err));
     }
 })
     .option('-f, --file <string>', 'path to your input file [mandatory]', (val) => { inputFile = val; })
@@ -75,5 +76,5 @@ func.JMsetup(opt)
         func.dualTest(inputFile, inputFile2, management); // if inputFile2 -> dual test
 })
     .on('exhausted', () => {
-    console.log("All jobs processed");
+    logger_1.logger.log('SUCCESS', "All jobs processed");
 });

@@ -26,6 +26,7 @@ A child class of Task must not override methods with a "DO NOT MODIFY" indicatio
 /**** TODO ****
 - doc
 - mettre en place un commander et une fonction usage pour ce script au cas où
+- verbose level option in ./test/test.ts
 
 */
 

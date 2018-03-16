@@ -5,8 +5,11 @@ First time you use this script ? Use this :
 
 import commander = require('commander');
 import jsonfile = require('jsonfile');
+import util = require('util');
 
 import func = require('./index');
+import {logger} from '../lib/logger';
+
 
 var cacheDir: string = null,
     bean: any = null,
@@ -47,8 +50,7 @@ commander
         (val) => { try {
             bean = jsonfile.readFileSync(val);
         } catch (err) {
-            console.log('ERROR while reading the config file :');
-            console.log(err)
+            logger.log('ERROR', 'ERROR while reading the config file : \n' + util.format(err));
         } })
     .option('-f, --file <string>', 'path to your input file [mandatory]',
         (val) => { inputFile = val; })
@@ -89,6 +91,6 @@ func.JMsetup(opt)
     else func.dualTest(inputFile, inputFile2, management); // if inputFile2 -> dual test
 })
 .on('exhausted', () => {
-    console.log("All jobs processed");
+    logger.log('SUCCESS', "All jobs processed");
 });
 

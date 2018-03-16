@@ -6,55 +6,45 @@ A SIMPLE FILE WITH THE TEST METHODS
 
 import events = require ('events');
 import fs = require ('fs');
-import localIP = require ('my-local-ip');
-import jobManager = require ('nslurm');
-import stream = require ('stream');
+import localIP = require('my-local-ip');
+import jobManager = require('nslurm');
+import stream = require('stream');
+import util = require('util')
 
 
-import du = require ('./dualTask');
+import du = require('./dualTask');
 import {logger} from '../lib/logger';
-import { loggerLevels } from '../lib/logger';
-import sim = require ('./simpleTask');
+import sim = require('./simpleTask');
+
 
 /*
+* USED TO test the simpletask : only one slot (one input)
 * @management [literal] composed of 2 manadatory keys : 'jobManager' and 'jobProfile'
 */
 export var simpleTest = function (inputFile, management) {
-	//var uuid: string = "67593282-c4a4-4fd0-8861-37d8548ce236"; // defined arbitrary but for tests
+	//var uuid: string = "00000000-1111-2222-3333-444444444444"; // defined arbitrary but for tests
 
     var a = new sim.Simple(management);
-    //console.log(a.input);
-    console.log(a)
-
-    //var b = new sim.Simple (management); // for superPipe() tests
     
+    logger.log('DEBUG', a.input);
+    logger.log('DEBUG', util.format(a));
+
     ///////////// pipeline /////////////
 
-    //process.stdin.pipe(a); // {"input" : "toto"} for example
+    //process.stdin.pipe(a.input); // {"input" : "toto"} for example
 
-    //fileToStream(inputFile, uuid).pipe(a)
+    //fileToStream(inputFile, "input", uuid).pipe(a.input)
 
     fileToStream(inputFile, "input").pipe(a.input)
     .on('processed', results => {
-        console.log('**** data');
+        logger.log('DEBUG', '**** data');
     })
     .on('err', (err, jobID) => {
-        console.log('**** ERROR');
+        logger.log('ERROR', '**** ERROR');
     })
     .on('stderrContent', buf => {
-        console.log('**** STDERR');
+        logger.log('ERROR', '**** STDERR');
     });
-
-    // a.superPipe(b)
-    // .on('processed', results => {
-    //     console.log('**** data 22222');
-    // })
-    // .on('err', (err, jobID) => {
-    //     console.log('**** ERROR 22222');
-    // })
-    // .on('stderrContent', buf => {
-    //     console.log('**** STDERR 22222');
-    // });
 
     a.pipe(process.stdout);
 
@@ -62,32 +52,35 @@ export var simpleTest = function (inputFile, management) {
 
 
 /*
-* USED TO test the dual inputs (dual slots in task)
+* USED TO test the dualtask : with dual inputs (dual slots in task).
+* WARNING  : to specify a namespace (uuid variable in this example), you have to add it only in
+* one stream "input" (see lines where "fileToStream" is called).
+*
 * @management [literal] composed of 2 manadatory keys : 'jobManager' and 'jobProfile'
 */
 export var dualTest = function (inputFile1, inputFile2, management) {
-    //var uuid: string = "67593282-c4a4-4fd0-8861-37d8548ce236"; // defined arbitrary but for tests
+    var uuid: string = "00000000-1111-2222-3333-444444444444"; // defined arbitrary but for tests
 
-    var a = new du.Dual(management, {'logLevel': 'info'});
-    console.log(a)
+    var a = new du.Dual(management, {'logLevel': 'debug'});
+    logger.log('DEBUG', util.format(a));
     
     ///////////// pipeline /////////////
 
-    //process.stdin.pipe(a); // {"input1" : "toto"} for example
+    //process.stdin.pipe(a.input1); // {"input1" : "toto"} for example
 
-    //fileToStream(inputFile, uuid).pipe(a.input1)
+    //fileToStream(inputFile1, "input1", uuid).pipe(a.input1) // if you want a namespace, add a uuid
 
-    fileToStream(inputFile1, "input1").pipe(a.input1)
-    fileToStream(inputFile2, "input2").pipe(a.input2)
+    fileToStream(inputFile1, "input1").pipe(a.input1) // stream input 1
+    fileToStream(inputFile2, "input2").pipe(a.input2) // stream input 2
     
     a.on('processed', results => {
-        console.log('**** data');
+        logger.log('DEBUG', '**** data');
     })
     .on('err', (err, jobID) => {
-        console.log('**** ERROR');
+        logger.log('ERROR', '**** ERROR');
     })
     .on('stderrContent', buf => {
-        console.log('**** STDERR');
+        logger.log('ERROR', '**** STDERR');
     });
 
     a.pipe(process.stdout);
@@ -110,7 +103,7 @@ export var JMsetup = function (opt?: any): events.EventEmitter {
     if (! opt.hasOwnProperty('bean')) opt['bean'] = {};
     if (! opt.bean.hasOwnProperty('engineType')) opt.bean['engineType'] = 'emulator';
     if (! opt.bean.hasOwnProperty('cacheDir')) {
-    	console.log('No cacheDir specified in opt.bean, so we take current directory');
+    	logger.log('WARNING', 'No cacheDir specified in opt.bean, so we take current directory');
     	opt.bean['cacheDir'] = process.cwd() + '/cacheDir';
     	try { fs.mkdirSync(opt.bean.cacheDir); }
     	catch (err) {
