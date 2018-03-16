@@ -21,15 +21,15 @@ var usage = function (): string {
     let str: string = '\n\n  Examples:\n\n'
     str += '    For a simpletask (simple test):\n';
     str += '      node ./test/test.js\n';
-    str += '        -cache /home/mgarnier/tmp/\n';
-    str += '        -conf ./node_modules/nslurm/config/arwenConf.json\n';
-    str += '        -file ./test/test.txt\n\n';
+    str += '        -d /home/mgarnier/tmp/\n';
+    str += '        -c ./node_modules/nslurm/config/arwenConf.json\n';
+    str += '        -f ./test/test.txt\n\n';
     str += '    For a dualtask (dual test):\n';
     str += '      node ./test/test.js\n';
-    str += '        -cache /home/mgarnier/tmp/\n';
-    str += '        -conf ./node_modules/nslurm/config/arwenConf.json\n';
-    str += '        -file ./test/test.txt\n';
-    str += '        -file2 ./test/test2.txt\n\n';
+    str += '        -d /home/mgarnier/tmp/\n';
+    str += '        -c ./node_modules/nslurm/config/arwenConf.json\n';
+    str += '        -f ./test/test.txt\n';
+    str += '        -s ./test/test2.txt\n\n';
     return str;
 }
 
