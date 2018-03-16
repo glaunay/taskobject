@@ -21,8 +21,11 @@ The output is a literal with this form :
 }
 */
 Object.defineProperty(exports, "__esModule", { value: true });
-// TODO
-// - doc
+/***** TODO *****
+- doc
+- mettre en place un commander et une fonction usage pour ce script au cas où
+
+*/
 const tk = require("../index");
 class Simple extends tk.Task {
     /*

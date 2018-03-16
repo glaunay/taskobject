@@ -14,7 +14,6 @@ var management = {
     "jobManager" : jobManager, // JM is "nslurm" repo
     "jobProfile" : jobProfile // see with JM spec.
 }
-var syncMode = true; // define the usage of your taskTest
 var taskTest = new tk.Task (management, syncMode);
 readableStream.pipe(taskTest).pipe(writableStream);
 
@@ -433,34 +432,6 @@ class Task extends stream.Readable {
             }
         }
         return new slot(symbol);
-    }
-    /*
-    * Try to kill the job(s) of this task
-    * WARNING : not implemented :
-    jobManager.stop exposes 4 events:
-        'cleanExit' : all jobs were succesfully killed
-        'leftExit'  : some jobs could not be killed
-        'emptyExit' : no jobs  to kill
-        'cancelError' : an error occur while killing
-        'listError': an error occur  while listing processes corresponding to pending jobs
-    */
-    kill(managerSettings) {
-        logger_1.logger.log('ERROR', 'The kill method is not implemented yet');
-        var emitter = new events.EventEmitter();
-        this.jobManager.stop(managerSettings, this.staticTag)
-            .on('cleanExit', function () {
-            emitter.emit('cleanExit');
-        })
-            .on('exit', function () {
-            emitter.emit('exit');
-        })
-            .on('errScancel', function () {
-            emitter.emit('errScancel');
-        })
-            .on('errSqueue', function () {
-            emitter.emit('errSqueue');
-        });
-        return emitter;
     }
     /*
     * DO NOT MODIFY

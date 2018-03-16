@@ -7,11 +7,11 @@ A SIMPLE FILE WITH THE TEST METHODS
 Object.defineProperty(exports, "__esModule", { value: true });
 const events = require("events");
 const fs = require("fs");
-const jobManager = require("nslurm");
 const localIP = require("my-local-ip");
-const sim = require("./simpleTask");
-const du = require("./dualTask");
+const jobManager = require("nslurm");
 const stream = require("stream");
+const du = require("./dualTask");
+const sim = require("./simpleTask");
 /*
 * @management [literal] composed of 2 manadatory keys : 'jobManager' and 'jobProfile'
 */
@@ -47,6 +47,7 @@ exports.simpleTest = function (inputFile, management) {
     a.pipe(process.stdout);
 };
 /*
+* USED TO test the dual inputs (dual slots in task)
 * @management [literal] composed of 2 manadatory keys : 'jobManager' and 'jobProfile'
 */
 exports.dualTest = function (inputFile1, inputFile2, management) {

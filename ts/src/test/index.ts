@@ -6,12 +6,15 @@ A SIMPLE FILE WITH THE TEST METHODS
 
 import events = require ('events');
 import fs = require ('fs');
-import jobManager = require ('nslurm');
 import localIP = require ('my-local-ip');
-import sim = require ('./simpleTask');
-import du = require ('./dualTask');
+import jobManager = require ('nslurm');
 import stream = require ('stream');
 
+
+import du = require ('./dualTask');
+import {logger} from '../lib/logger';
+import { loggerLevels } from '../lib/logger';
+import sim = require ('./simpleTask');
 
 /*
 * @management [literal] composed of 2 manadatory keys : 'jobManager' and 'jobProfile'

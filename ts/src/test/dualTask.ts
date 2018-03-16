@@ -22,8 +22,11 @@ The output is a literal with this form :
 */
 
 
-// TODO
-// - doc
+/***** TODO *****
+- doc
+- mettre en place un commander et une fonction usage pour ce script au cas où
+
+*/
 
 
 import tk = require ('../index');

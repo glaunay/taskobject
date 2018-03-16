@@ -1,78 +1,50 @@
 "use strict";
 /*
-TO RUN :
-node /path/to/this/script/test.js -cache /path/to/cache/tmp/ [optional if -conf]
-                                -conf /path/to/nslurm/config/arwenConf.json [not necessary if --emul]
-                                -file /path/to/your/file.txt
-                                --index // to allow indexation of the cache directory of nslurm [optional]
+First time you use this script ? Use this :
+    node /path/to/this/script/test.js -h
 */
 Object.defineProperty(exports, "__esModule", { value: true });
+const commander = require("commander");
 const jsonfile = require("jsonfile");
 const func = require("./index");
 var cacheDir = null, bean = null, inputFile = null, inputFile2 = null, b_index = false;
 var optCacheDir = [];
 //////////////// usage //////////////////
 var usage = function () {
-    let str = '\n\n********** Test file to run a SimpleTask or a DualTask **********\n\n';
-    str += 'DATE : 2018.02.06\n\n';
-    str += 'USAGE : (in the TaskObject directory)\n';
-    str += 'node ./test/test.js\n';
-    str += '    -u, to have help\n';
-    str += '    -cache [PATH_TO_CACHE_DIRECTORY_FOR_NSLURM], [optional if -conf]\n';
-    str += '    -conf [PATH_TO_THE_CLUSTER_CONFIG_FILE_FOR_NSLURM], [not necessary if --emul]\n';
-    str += '    -file [PATH_TO_YOUR_INPUT_FILE]\n';
-    str += '    -file2 [PATH_TO_YOUR_INPUT_FILE NUMBER 2], [optional for a simple test]\n';
-    str += '    --index, to allow indexation of the cache directory of nslurm [optional]\n\n';
-    str += 'EXAMPLE FOR A SIMPLE TEST:\n';
-    str += 'node ./test/test.js\n';
-    str += '    -cache /home/mgarnier/tmp/\n';
-    str += '    -conf ./node_modules/nslurm/config/arwenConf.json\n';
-    str += '    -file ./test/test.txt\n\n';
-    str += 'EXAMPLE FOR A DUAL TEST:\n';
-    str += 'node ./test/test.js\n';
-    str += '    -cache /home/mgarnier/tmp/\n';
-    str += '    -conf ./node_modules/nslurm/config/arwenConf.json\n';
-    str += '    -file ./test/test.txt\n\n';
-    str += '    -file2 ./test/test2.txt\n\n';
-    str += '**************************************************\n\n';
-    console.log(str);
+    let str = '\n\n  Examples:\n\n';
+    str += '    For a simpletask (simple test):\n';
+    str += '      node ./test/test.js\n';
+    str += '        -cache /home/mgarnier/tmp/\n';
+    str += '        -conf ./node_modules/nslurm/config/arwenConf.json\n';
+    str += '        -file ./test/test.txt\n\n';
+    str += '    For a dualtask (dual test):\n';
+    str += '      node ./test/test.js\n';
+    str += '        -cache /home/mgarnier/tmp/\n';
+    str += '        -conf ./node_modules/nslurm/config/arwenConf.json\n';
+    str += '        -file ./test/test.txt\n';
+    str += '        -file2 ./test/test2.txt\n\n';
+    return str;
 };
 ///////////// arguments /////////////
-process.argv.forEach(function (val, index, array) {
-    if (val == '-u') {
-        console.log(usage());
-        process.exit();
+commander
+    .usage('node ./test/test.js [options]        # in the taskobject directory')
+    .description('A script for testing a simpletask or a dualtask')
+    .on('--help', () => { console.log(usage()); })
+    .option('-u, --usage', 'display examples of usages', () => { console.log(usage()); process.exit(); })
+    .option('-d, --dircache <string>', 'path to cache directory used by the JobManager [optional if -c]', (val) => { cacheDir = val; })
+    .option('-c, --config <string>', 'path to the cluster config file for the JobManager [optional if emulation]', (val) => {
+    try {
+        bean = jsonfile.readFileSync(val);
     }
-    if (val === '-cache') {
-        if (!array[index + 1])
-            throw 'usage : ' + usage();
-        cacheDir = array[index + 1];
+    catch (err) {
+        console.log('ERROR while reading the config file :');
+        console.log(err);
     }
-    if (val === '-conf') {
-        if (!array[index + 1])
-            throw 'usage : ' + usage();
-        try {
-            bean = jsonfile.readFileSync(array[index + 1]);
-        }
-        catch (err) {
-            console.log('ERROR while reading the config file :');
-            console.log(err);
-        }
-    }
-    if (val === '-file') {
-        if (!array[index + 1])
-            throw 'usage : ' + usage();
-        inputFile = array[index + 1];
-    }
-    if (val === '-file2') {
-        if (!array[index + 1])
-            throw 'usage : ' + usage();
-        inputFile2 = array[index + 1];
-    }
-    if (val === '--index') {
-        b_index = true;
-    }
-});
+})
+    .option('-f, --file <string>', 'path to your input file [mandatory]', (val) => { inputFile = val; })
+    .option('-s, --secfile <string>', 'path to your second input file [mandatory only for a dual test]', (val) => { inputFile2 = val; })
+    .option('-i, --index', 'allow indexation of the cache directory of the JobManager [optional]', () => { b_index = true; })
+    .parse(process.argv);
 if (!inputFile)
     throw 'No input file specified ! Usage : ' + usage();
 if (!bean)
