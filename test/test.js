@@ -25,14 +25,14 @@ var usage = function () {
     str += '        -c ./node_modules/nslurm/config/arwenConf.json\n';
     str += '        -f ./test/test.txt\n';
     str += '        -s ./test/test2.txt\n\n';
-    return str;
+    console.log(str);
 };
 ///////////// arguments /////////////
 commander
     .usage('node ./test/test.js [options]        # in the taskobject directory')
     .description('A script for testing a simpletask or a dualtask')
-    .on('--help', () => { console.log(usage()); })
-    .option('-u, --usage', 'display examples of usages', () => { console.log(usage()); process.exit(); })
+    .on('--help', () => { usage(); })
+    .option('-u, --usage', 'display examples of usages', () => { usage(); process.exit(); })
     .option('-d, --dircache <string>', 'path to cache directory used by the JobManager [optional if -c]', (val) => { cacheDir = val; })
     .option('-c, --config <string>', 'path to the cluster config file for the JobManager [optional if emulation]', (val) => {
     try {

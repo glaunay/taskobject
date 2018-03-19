@@ -20,7 +20,7 @@ var optCacheDir: string[] = [];
 
 
 //////////////// usage //////////////////
-var usage = function (): string {
+var usage = function (): void {
     let str: string = '\n\n  Examples:\n\n'
     str += '    For a simpletask (simple test):\n';
     str += '      node ./test/test.js\n';
@@ -33,7 +33,7 @@ var usage = function (): string {
     str += '        -c ./node_modules/nslurm/config/arwenConf.json\n';
     str += '        -f ./test/test.txt\n';
     str += '        -s ./test/test2.txt\n\n';
-    return str;
+    console.log(str);
 }
 
 
@@ -41,9 +41,9 @@ var usage = function (): string {
 commander
     .usage('node ./test/test.js [options]        # in the taskobject directory')
     .description('A script for testing a simpletask or a dualtask')
-    .on('--help', () => { console.log(usage()); })
+    .on('--help', () => { usage(); })
     .option('-u, --usage', 'display examples of usages',
-        () => { console.log(usage()); process.exit(); })
+        () => { usage(); process.exit(); })
     .option('-d, --dircache <string>', 'path to cache directory used by the JobManager [optional if -c]',
         (val) => { cacheDir = val; })
     .option('-c, --config <string>', 'path to the cluster config file for the JobManager [optional if emulation]',
