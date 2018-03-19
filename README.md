@@ -1,16 +1,20 @@
 # Taskobject
 
-Taskobject is an instance of stream, in order to define bioinformatic tasks.
+Taskobject is an instance of Stream, in order to define bioinformatic tasks.
 
 
 ## What is a Task ?
 
+We have implemented the Task class in order to construct scientific pipelines, manage data for scientific calculations and submit scientific jobs to a JM (= Job Manager, more info in the [More](#more) section) :
+- a Task is a class inherited from the Readable Stream class. Thus, it can contain data and do stuff with it. It can also use the method `pipe` like : `mytask.pipe(writableStream)` and transfer its data to a writable Stream
+- a Task feed data in JSON format, so we can easily parse it and use it, and returns results in JSON format too (consistency for pipelines)
+- a Task is dependant to a JM to run the calculations
+- a Task always provide a bash script that will be passed to the JM (with the inputs and the settings) to run the job. It is the core of the job.  
+
+### Slots
+
 Coming soon...
 
-- instance of Streams (Duplex)
-- Needs a JM
-- Feeds on JSON and returns JSON
-- run a bash script
 
 
 ## Installation
@@ -24,9 +28,11 @@ npm install taskobject
 
 ## Usage : tests
 
-This module can be used only in the test mode. In fact, the taskobject is an abstract class created as a base to implement bioinformatic tasks using inheritance.  
-The test mode uses a child class of taskobject : the simpleTask (more info in the [More](#more) section).  
-You can either make a test in your proper JS file or use the test file we provide.
+This module can be used only with the test modes. In fact, the taskobject is an abstract class created as a base to implement bioinformatic tasks, using inheritance.  
+Two test modes are available. Each one is based on a child class of the taskobject :
+- the simple test : uses the simpleTask (more info in the [More](#more) section)
+- the dual test : uses the dualtask (more info in the [More](#more) section)
+You can either make a test in your proper JS file or use one of the test files we provide.
 
 
 ### Your proper test
@@ -37,22 +43,23 @@ In your JS script, import the test file :
 var tkTest = require('./node_modules/taskobject/test/test');
 ```
 
-Then you have to start and set up a JM (= Job Manager, more info in the [More](#more) section). We provide a method that takes care of that :
+Then you have to start and set up a JM. We provide a method that takes care of that :
 
 ```
 tkTest.JMsetup();
 ```
 
 `JMsetup` returns an object instance of EventEmitter. It emits `"ready"` when the JM is ready to receive jobs, and provide the JM object.
-Then, you can run the `simpleTest` method :
+Then, you can run the `simpleTest` method (or the `dualTest` method) :
 
 ```
 tkTest.JMsetup().on('ready', function (JMobject) {
 	tkTest.simpleTest(inputFile, management);
+	tkTest.dualTest(inputFile1, inputFile2, management);
 });
 ```
 
-- `inputFile` is the absolute path to your input file. For the file, no specific format needed.
+- `inputFile` are absolute path to your input file(s). No specific format needed.
 - `management` is a literal like :
 
 ```
@@ -61,11 +68,18 @@ let management = {
 }
 ```
 
-The `simpleTest` method :
+>The `simpleTest` method :
+>1. creates a stream (Readable) containing a JSON with your `inputFile` content,
+>2. instantiates a simpleTask (more info in the [More](#more) section),
+>3. pipes the stream on the simpleTask.input slot,
+>4. pipes the simpleTask object on `process.stdout`, so you can watch the results in your console.  
 
-1. creates a stream (Readable) containing a JSON with your `inputFile` content,
-2. instantiates a simpleTask (more info in the [More](#more) section),
-3. pipes the stream on the simpleTask, also piped on `process.stdout`, so you can watch the results in your console.
+>The `dualTest` method :
+>1. creates two streams (Readable) each one containing a JSON with your `inputFileX` content (X = 1 or 2),
+>2. instantiates a dualTask (more info in the [More](#more) section),
+>3. pipes the stream of inputFile1 on the simpleTask.input1 slot,
+>4. pipes the stream of inputFile2 on the simpleTask.input2 slot,
+>5. pipes the dualTask object on `process.stdout`, so you can watch the results in your console.  
 
 
 ### The test file
