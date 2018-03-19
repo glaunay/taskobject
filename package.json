@@ -1,6 +1,6 @@
 {
   "name": "taskobject",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "author": "Mélanie Garnier",
   "date": "last modification : 2017-12-18",
   "description": "A class to define tasks",
