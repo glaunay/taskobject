@@ -1,19 +1,35 @@
 # Taskobject
 
-Taskobject is an instance of Stream, in order to define bioinformatic tasks.
-
-
 ## What is a Task ?
 
-We have implemented the Task class in order to construct scientific pipelines, manage data for scientific calculations and submit scientific jobs to a JM (= Job Manager, more info in the [More](#more) section) :
-- a Task is a class inherited from the Readable Stream class. Thus, it can contain data and do stuff with it. It can also use the method `pipe` like : `mytask.pipe(writableStream)` and transfer its data to a writable Stream
-- a Task feed data in JSON format, so we can easily parse it and use it, and returns results in JSON format too (consistency for pipelines)
+We have implemented the Task class in order to :
+1. construct scientific pipelines,
+2. manage data for scientific calculations,
+3. and submit scientific jobs to a JM (= Job Manager, more info in the [More](#more) section).  
+
+### Construct pipelines
+A Task is a class inherited from the Readable Stream class. Thus, it can contain data and do stuff with it. It can also use the method `pipe` like : `mytask.pipe(writableStream)` and transfer its data to a writable Stream. The output data is always in JSON format.  
+
+A Task contains Slots. These are objects inherited from the Writable Stream class. Thus, we can push data on them like : `readableStream.pipe(mytask.myslot)`. Each input needed to run a Task calculation is associated to one unique Slot (so each Slot is created to receive only one unique input). The input data must be pushed in a JSON format.  
+
+With these elements, we can easily construct a pipeline :
+```
+task_a.pipe(task_c.slot_1)
+task_b.pipe(task_c.slot_2)
+
+task_c.pipe(task_d.slot_1)
+```
+Here `task_c` contains two Slots : `slot_1` and `slot_2`. The `slot_1` takes data from `task_a`, and the `slot_2` takes data from `task_b`. Then, `task_c` push its results into the `slot_1` of `task_d`.
+
+
+
+
+Coming soon .....
 - a Task is dependant to a JM to run the calculations
 - a Task always provide a bash script that will be passed to the JM (with the inputs and the settings) to run the job. It is the core of the job.  
 
-### Slots
 
-Coming soon...
+
 
 
 
@@ -139,7 +155,9 @@ The simpleTask has been implemented only for the tests. It :
 3. creates a new JSON with a "reverse" key, the value being the reversed text,
 4. push this new JSON on its Readable interface. Then we can use a pipe on it, like `simpleTask.pipe(y)`.
 
+### DualTask
 
+Coming soon...  
 
 
 [1]: https://github.com/glaunay/nslurm
