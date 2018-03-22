@@ -140,7 +140,8 @@ class MyCustomTask extends tk.Task {}
 3. construct the path to the setting file of your Task with `this.rootdir`,
 4. define a unique tag to your child class,
 5. define the Slot names of your Task, one for each input (in the `slotSymbols` array),
-6. call the init method to sett your Task.  
+6. call the init method to sett your Task.   
+
 Example :
 ```
 constructor(management, options) {
@@ -156,6 +157,16 @@ constructor(management, options) {
 #### The settings.json file
 
 Coming soon...
+
+Must contain :
+
+```
+{
+	"coreScript" : "/../data/simple.sh",
+	"settings" : {}
+}
+```
+
 
 #### The CoreScript
 Coming soon...
