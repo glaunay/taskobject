@@ -12,13 +12,14 @@ Coming from a readable stream, the input must be like :
 {
     "input" : "pdb into string format"
 }
-WARNING : "input" is an obligatory key.
+WARNING : "input" is an mandatory key.
 
 * OUTPUT *
 The output is a literal with this form :
 {
-    "input" : '{\n"myData line 1" : "toto"\n}\n'
+    "concatenated": "tototiti"
 }
+
 */
 Object.defineProperty(exports, "__esModule", { value: true });
 /***** TODO *****
@@ -34,11 +35,11 @@ class Dual extends tk.Task {
     constructor(management, options) {
         super(management, options); // constructor of the tk.Task Object
         this.rootdir = __dirname; // always take the current directory of the task...
-        this.settFile = this.rootdir + '/../data/settings2.json'; // ... to find the path to the settings file
+        this.coreScript = this.rootdir + '/../data/dual.sh'; // the bash script (core of the Task)
         this.staticTag = 'dualtask'; // unique !
         /* Creation of the slot symbols : only one here */
         this.slotSymbols = ['input1', 'input2'];
-        super.init(this.settFile); // always init() with the settings file at the end of the constructor
+        super.initSlots(); // always init the Slots
     }
     /*
     * Here manage the input(s)

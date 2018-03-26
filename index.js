@@ -1,21 +1,8 @@
 "use strict";
 /*
-* CLASS TASK
-* settFile must be like :
-{
-    "coreScript": "./data/simple.sh",
-    "settings": {}
-}
-
+***** CLASS TASK *****
 
 * Usage :
-var tk = require('taskobject');
-var management = {
-    "jobManager" : jobManager, // JM is "nslurm" repo
-    "jobProfile" : jobProfile // see with JM spec.
-}
-var taskTest = new tk.Task (management, syncMode);
-readableStream.pipe(taskTest).pipe(writableStream);
 
 
 * Inheritance :
@@ -41,19 +28,14 @@ class Task extends stream.Readable {
         super(options);
         this.jobManager = null; // job manager (engineLayer version)
         this.jobProfile = null; // "arwen_express" for example (see the different config into nslurm module)
-        this.syncMode = false; // define the mode : async or not (see next line)
         this.streamContent = ''; // content of the stream (concatenated @chunk)
         this.jsonContent = []; // all the whole JSONs found in streamContent
         this.goReading = false; // indicate when the read function can be used
         this.slotSymbols = []; // all the slot symbols this task needs
-        this.jobsRun = 0; // number of jobs that are still running
-        this.jobsErr = 0; // number of jobs that have emitted an error
         this.rootdir = __dirname; // current directory of @this
         this.coreScript = null; // path of the core script of the Task
         this.modules = []; // modules needed in the coreScript to run the Task
         this.exportVar = {}; // variables to export, needed in the coreScript of the Task
-        this.settFile = null; // file path of the proper settings of the Task
-        this.settings = {}; // content of the settFile or other settings if the set() method is used
         this.staticTag = null; // tagTask : must be unique between all the Tasks
         if (typeof management == "undefined")
             throw 'ERROR : a literal for job management must be specified';
@@ -88,23 +70,9 @@ class Task extends stream.Readable {
     }
     /*
     * DO NOT MODIFY
-    * Initialization of the task : called ONLY by the constructor.
-    * @data is either a string which describe a path to a JSON file,
-    * or a literal like { 'author' : 'me', 'settings' : { 't' : 5, 'iterations' : 10 } }.
+    * Initialization of the Slots : called ONLY by the constructor.
     */
-    init(data) {
-        if (data) {
-            let userData;
-            if (typeof data === "string")
-                userData = this.parseJsonFile(data);
-            else
-                userData = data;
-            if ('coreScript' in userData)
-                this.coreScript = this.rootdir + '/' + userData.coreScript;
-            if ('settings' in userData)
-                this.settings = userData.settings;
-        }
-        // creation of the slots
+    initSlots() {
         if (this.slotSymbols.length == 0)
             throw 'ERROR : your task must define at least one slot symbol';
         else {
@@ -112,44 +80,6 @@ class Task extends stream.Readable {
                 this[sym] = this.createSlot(sym);
             }
         }
-    }
-    /*
-    * MUST BE ADAPTED FOR CHILD CLASSES
-    * Change task parameters according to @data :
-    * @data is either a string which describe a path to a JSON file,
-    * or a literal like { 'author' : 'me', 'settings' : { 't' : 5, 'iterations' : 10 } }.
-    */
-    set(data) {
-        if (data) {
-            let userData;
-            if (typeof data === "string")
-                userData = this.parseJsonFile(data);
-            else
-                userData = data;
-            if ('coreScript' in userData)
-                this.coreScript = this.rootdir + '/' + userData.coreScript;
-            if ('settings' in userData) {
-                for (var key in userData.settings) {
-                    if (this.settings.hasOwnProperty(key))
-                        this.settings[key] = userData.settings[key];
-                    else
-                        throw 'ERROR : cannot set the ' + key + ' property which does not exist in this task';
-                }
-            }
-        }
-    }
-    /*
-    * DO NOT MODIFY
-    * In anticipation of the unique jobManager processus and its monitor mode.
-    */
-    getState() {
-        return {
-            "staticTag": this.staticTag,
-            "syncMode": this.syncMode,
-            "jobProfile": this.jobProfile,
-            "stillRunning": this.jobsRun,
-            "errorEmitted": this.jobsErr
-        };
     }
     /*
     * DO NOT MODIFY

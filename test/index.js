@@ -47,7 +47,7 @@ exports.simpleTest = function (inputFile, management) {
 */
 exports.dualTest = function (inputFile1, inputFile2, management) {
     var uuid = "00000000-1111-2222-3333-444444444444"; // defined arbitrary but for tests
-    var a = new du.Dual(management, { 'logLevel': 'debug' });
+    var a = new du.Dual(management, { 'logLevel': 'info' });
     logger_1.logger.log('DEBUG', util.format(a));
     ///////////// pipeline /////////////
     //process.stdin.pipe(a.input1); // {"input1" : "toto"} for example

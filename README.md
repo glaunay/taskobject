@@ -5,7 +5,7 @@
 We have implemented the Task class in order to :
 1. construct scientific pipelines,
 2. manage data for scientific calculations (inputs and outputs),
-3. submit scientific jobs to a JM (= Job Manager, more info in the [More](#more) section).  
+3. submit scientific jobs to a JM (= Job Manager, more info in the [Job Manager](#job-manager) section).  
 
 ### What is a Task ?
 A Task is a class inherited from the Readable Stream class. Thus, it can contain data and do stuff with it. It can also use the method `pipe` like : `mytask.pipe(writableStream)` and transfer its data to a writable Stream. The output data is always in JSON format.  
@@ -44,8 +44,8 @@ npm install taskobject
 
 This module can be used only with the test modes. In fact, the taskobject is an abstract class created as a base to implement bioinformatic tasks, using inheritance.  
 Two test modes are available. Each one is based on a child class of the taskobject :
-- the simple test : uses the simpletask (more info in the [More](#more) section)
-- the dual test : uses the dualtask (more info in the [More](#more) section)
+- the simple test : uses the simpletask (more info in the [SimpleTask](#simpletask) section)
+- the dual test : uses the dualtask (more info in the [DualTask](#dualtask) section)
 You can either make a test in your proper JS file or use one of the test files we provide.
 
 
@@ -83,13 +83,13 @@ let management = {
 ```
 
 >The `simpleTest` method :
->1. instantiates a simpletask (more info in the [More](#more) section),
+>1. instantiates a simpletask (more info in the [SimpleTask](#simpletask) section),
 >2. creates a stream (Readable) with your `inputFile` content (in a JSON),
 >3. pipes the stream on the `simpleTask.input` slot,
 >4. pipes the simpletask object on `process.stdout`, so you can watch the results in your console.  
 
 >The `dualTest` method :
->1. instantiates a dualtask (more info in the [More](#more) section),
+>1. instantiates a dualtask (more info in the [DualTask](#dualtask) section),
 >2. creates two streams (Readable) each one containing a JSON with an input content (`inputFile1` and `inputFile2`),
 >3. pipes the stream of `inputFile1` on the `simpleTask.input1` slot,
 >4. pipes the stream of `inputFile2` on the `simpleTask.input2` slot,
@@ -127,6 +127,8 @@ Coming soon...
 
 In our team we use TypeScript to develop but here the examples are in JavaScript.
 
+A Task object must be used for only one job. Create a new instance of a a Task by job to run.
+
 #### Inheritence
 Your class must inherit from the taskobject :
 ```
@@ -137,44 +139,71 @@ class MyCustomTask extends tk.Task {}
 #### The constructor
 1. call the parent class constructor,
 2. take the current directory of your Task class,
-3. construct the path to the setting file of your Task with `this.rootdir`,
+3. construct the path to the bash script of your Task with `this.rootdir`,
 4. define a unique tag to your child class,
 5. define the Slot names of your Task, one for each input (in the `slotSymbols` array),
-6. call the init method to sett your Task.   
+6. initialize the Slots.   
 
 Example :
 ```
 constructor(management, options) {
 	super(management, options); // (1)
 	this.rootdir = __dirname; // (2)
-	this.settFile = this.rootdir + '/../data/settings.json'; // (3)
+	this.coreScript = this.rootdir + '/data/myCoreScript.sh'; // (3)
 	this.staticTag = 'my_custom_task'; // (4)
-	this.slotSymbols = ['myinputA', 'myinputB']; // (5)
-	super.init(this.settFile); // (6)
+	this.slotSymbols = ['myInputA', 'myInputB']; // (5)
+	super.initSlots(); // (6)
 }
 ```
 
-#### The settings.json file
+>**Note** : `management` (see the [Management Literal](#management-literal) part) and `options` (see the [Options Literal](#options-literal) part) are literals.
 
-Coming soon...
+#### Management Literal
+The `management` literal can contain 2 keys :
+- `jobManager` (object) : an instance of a JM (see the [Job Manager](#job-manager) section) [mandatory].
+- `jobProfile` (string) : the profile to run the job [optional]. This profile will be passed to the JM and will define the running settings for the job (nodes, queues, users, groups, etc.).   
 
-Must contain :
-
+Example :
 ```
-{
-	"coreScript" : "/../data/simple.sh",
-	"settings" : {}
+let myManagement = {
+	'jobManager' : JMobject,
+	'jobProfile' : 'default'
 }
 ```
+
+
+#### Options Literal
+The `options` literal can contain 3 keys :
+- `logLevel` (string) : specify a verbose level [optional]. Choose between `debug`, `info`, `success`, `warning`, `error` and `critical`.
+- `modules` ([string]) : an array of modules to load before the run of the core script [optional].
+- `exportVar` (literal) : a dictionary of the variable to export before the run of the core script [optional]. Each key is the name of the variable and each value is its content.  
+
+Example :
+```
+let myOptions = {
+	'logLevel': 'debug',
+    'modules' : ['myModule1', 'myModule2'],
+    'exportVar' : { 'myVar1' : '/an/awesome/path/to/a/file.exe',
+    				'myVar_module2' : ' -ncpu 16 -file /path/toto.txt ' }
+};
+``` 
 
 
 #### The CoreScript
-Coming soon...
+Every Task must have a bash script which runs the calculations. We named it the core script.  
 
-Every Task must have a bash script which run the calculations. It can be a Blast or anything else.
+In your core script, you can access to :
+- the inputs you defined thanks to the Slots (in the `slotSymbols` array, see [The constructor](#the-constructor) part). Example : ```contentInputA=`cat $myinputA` # take the content of myInputA```.
+- the modules you gave to the `options` literal (see [Options Literal](#options-literal) part). Example : ```myModule1 > /dev/null```.
+- the variables you gave to the `options` literal (see [Options Literal](#options-literal) part). Example : ```myModule2 $myVar_module2 > /dev/null # run myModule2 with the options : ' -ncpu 16 -file /path/toto.txt '```.   
 
-Talks about the Slot names here !!!!!!!!!!!!!!!!!!!!!
-(the symbol of a Slot is usable in the CoreScript)
+The core script you create must make `echo` only to contruct a JSON containing the results. Otherwise, your Task will crash.
+Example :
+```
+echo "{ \"pathOfCurrentDir\" : \""
+echo $(pwd) # the path of the current directory
+echo "\" }"
+```
 
 ## More
 

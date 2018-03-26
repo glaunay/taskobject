@@ -1,20 +1,7 @@
 /*
-* CLASS TASK
-* settFile must be like :
-{
-	"coreScript": "./data/simple.sh",
-	"settings": {}
-}
-
+***** CLASS TASK *****
 
 * Usage :
-var tk = require('taskobject');
-var management = {
-	"jobManager" : jobManager, // JM is "nslurm" repo
-	"jobProfile" : jobProfile // see with JM spec.
-}
-var taskTest = new tk.Task (management, syncMode);
-readableStream.pipe(taskTest).pipe(writableStream);
 
 
 * Inheritance :
@@ -47,19 +34,14 @@ declare var __dirname;
 export abstract class Task extends stream.Readable {
 	private readonly jobManager: any = null; // job manager (engineLayer version)
 	private readonly jobProfile: string = null; // "arwen_express" for example (see the different config into nslurm module)
-	private readonly syncMode: boolean = false; // define the mode : async or not (see next line)
 	private streamContent: string = ''; // content of the stream (concatenated @chunk)
 	private jsonContent: {}[] = []; // all the whole JSONs found in streamContent
 	private goReading: boolean = false; // indicate when the read function can be used
 	protected slotSymbols: string[] = []; // all the slot symbols this task needs
-	private jobsRun: number = 0; // number of jobs that are still running
-	private jobsErr: number = 0; // number of jobs that have emitted an error
 	protected rootdir: string = __dirname; // current directory of @this
 	protected coreScript: string = null; // path of the core script of the Task
 	protected readonly modules: string[] = []; // modules needed in the coreScript to run the Task
 	protected readonly exportVar: {} = {}; // variables to export, needed in the coreScript of the Task
-	protected settFile: string = null; // file path of the proper settings of the Task
-	protected settings: {} = {}; // content of the settFile or other settings if the set() method is used
 	protected staticTag: string = null; // tagTask : must be unique between all the Tasks
 
 	/*
@@ -99,59 +81,14 @@ export abstract class Task extends stream.Readable {
 
 	/*
 	* DO NOT MODIFY
-	* Initialization of the task : called ONLY by the constructor.
-	* @data is either a string which describe a path to a JSON file,
-	* or a literal like { 'author' : 'me', 'settings' : { 't' : 5, 'iterations' : 10 } }.
+	* Initialization of the Slots : called ONLY by the constructor.
 	*/
-	protected init (data: any): void {
-		if (data) {
-			let userData;
-			if (typeof data === "string") userData = this.parseJsonFile(data);
-			else userData = data;
-			if ('coreScript' in userData) this.coreScript = this.rootdir+ '/' + userData.coreScript;
-			if ('settings' in userData) this.settings = userData.settings;
-		}
-		// creation of the slots
+	protected initSlots (): void {
 		if (this.slotSymbols.length == 0) throw 'ERROR : your task must define at least one slot symbol';
 		else {
 			for (let sym of this.slotSymbols) {
 				this[sym] = this.createSlot(sym);
 			}
-		}
-	}
-
-	/*
-	* MUST BE ADAPTED FOR CHILD CLASSES
-	* Change task parameters according to @data :
-	* @data is either a string which describe a path to a JSON file,
-	* or a literal like { 'author' : 'me', 'settings' : { 't' : 5, 'iterations' : 10 } }.
-	*/
-	protected set (data: any): void {
-		if (data) {
-			let userData;
-			if (typeof data === "string") userData = this.parseJsonFile(data);
-			else userData = data;
-			if ('coreScript' in userData) this.coreScript = this.rootdir + '/' + userData.coreScript;
-			if ('settings' in userData) {
-				for (var key in userData.settings) {
-					if (this.settings.hasOwnProperty(key)) this.settings[key] = userData.settings[key];
-					else throw 'ERROR : cannot set the '+ key +' property which does not exist in this task';
-				}
-			}
-		}
-	}
-
-	/*
-	* DO NOT MODIFY
-	* In anticipation of the unique jobManager processus and its monitor mode.
-	*/
-	public getState (): {} {
-		return {
-			"staticTag" : <string> this.staticTag,
-			"syncMode" : <boolean> this.syncMode,
-			"jobProfile" : <string> this.jobProfile,
-			"stillRunning" : <number> this.jobsRun,
-			"errorEmitted" : <number> this.jobsErr
 		}
 	}
 

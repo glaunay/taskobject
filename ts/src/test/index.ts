@@ -61,7 +61,7 @@ export var simpleTest = function (inputFile, management) {
 export var dualTest = function (inputFile1, inputFile2, management) {
     var uuid: string = "00000000-1111-2222-3333-444444444444"; // defined arbitrary but for tests
 
-    var a = new du.Dual(management, {'logLevel': 'debug'});
+    var a = new du.Dual(management, {'logLevel': 'info'});
     logger.log('DEBUG', util.format(a));
     
     ///////////// pipeline /////////////
