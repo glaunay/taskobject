@@ -127,6 +127,8 @@ Coming soon...
 
 In our team we use TypeScript to develop but here the examples are in JavaScript.
 
+All the examples in this part are related.
+
 A Task object must be used for only one job. Create a new instance of a a Task by job to run.
 
 #### Inheritence
@@ -174,9 +176,9 @@ let myManagement = {
 
 #### Options Literal
 The `options` literal can contain 3 keys :
-- `logLevel` (string) : specify a verbose level [optional]. Choose between `debug`, `info`, `success`, `warning`, `error` and `critical`.
-- `modules` ([string]) : an array of modules to load before the run of the core script [optional].
-- `exportVar` (literal) : a dictionary of the variable to export before the run of the core script [optional]. Each key is the name of the variable and each value is its content.  
+- `logLevel` (`string`) : specify a verbose level [optional]. Choose between `debug`, `info`, `success`, `warning`, `error` and `critical`.
+- `modules` (`[string]`) : an array of modules to load before the run of the core script [optional].
+- `exportVar` (`literal`) : a dictionary of the variable to export before the run of the core script [optional]. Each key is the name of the variable and each value is its content.  
 
 Example :
 ```
@@ -193,13 +195,24 @@ let myOptions = {
 Every Task must have a bash script which runs the calculations. We named it the core script.  
 
 In your core script, you can access to :
-- the inputs you defined thanks to the Slots (in the `slotSymbols` array, see [The constructor](#the-constructor) part). Example : ```contentInputA=`cat $myinputA` # take the content of myInputA```.
-- the modules you gave to the `options` literal (see [Options Literal](#options-literal) part). Example : ```myModule1 > /dev/null```.
-- the variables you gave to the `options` literal (see [Options Literal](#options-literal) part). Example : ```myModule2 $myVar_module2 > /dev/null # run myModule2 with the options : ' -ncpu 16 -file /path/toto.txt '```.   
+1. the inputs you defined thanks to the Slots (in the `slotSymbols` array, see [The constructor](#the-constructor) part),
+2. the modules you gave to the `options` literal (see [Options Literal](#options-literal) part),
+3. the variables you gave to the `options` literal (see [Options Literal](#options-literal) part).
 
-The core script you create must make `echo` only to contruct a JSON containing the results. Otherwise, your Task will crash.
+**Warning** : the core script you create must make `echo` only to contruct a JSON containing the results. Otherwise, your Task will crash.  
+
 Example :
 ```
+# Take the content of myInputA :
+contentInputA=`cat $myinputA` # (1)
+
+# Run myModule1 with myInputB as a parameter :
+myModule1 $myInputB > /dev/null # (2)
+
+# Run myModule2 with the options : ' -ncpu 16 -file /path/toto.txt ' :
+myModule2 $myVar_module2 > /dev/null # (3)
+
+# Create the JSON as output :
 echo "{ \"pathOfCurrentDir\" : \""
 echo $(pwd) # the path of the current directory
 echo "\" }"
