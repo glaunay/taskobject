@@ -19,6 +19,7 @@ const stream = require("stream");
 const util = require("util");
 const logger_1 = require("./lib/logger");
 const logger_2 = require("./lib/logger");
+const typ = require("./types/index");
 class Task extends stream.Readable {
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
@@ -39,17 +40,14 @@ class Task extends stream.Readable {
         this.staticTag = null; // tagTask : must be unique between all the Tasks
         if (typeof management == "undefined")
             throw 'ERROR : a literal for job management must be specified';
-        if (management.hasOwnProperty('jobManager')) {
-            this.jobManager = management.jobManager;
-            if (management.hasOwnProperty('jobProfile')) {
-                this.jobProfile = management.jobProfile;
-            }
-            else {
-                logger_1.logger.log('INFO', 'no jobProfile specified -> take default jobProfile for the ' + this.staticTag + ' task.');
-            }
+        if (!typ.isManagement(management))
+            throw 'ERROR : wrong format of @management !';
+        this.jobManager = management.jobManager;
+        if (management.hasOwnProperty('jobProfile')) {
+            this.jobProfile = management.jobProfile;
         }
         else {
-            throw 'ERROR : no \'jobManager\' key specified in the job management literal.';
+            logger_1.logger.log('INFO', 'no jobProfile specified -> take default jobProfile for the ' + this.staticTag + ' task.');
         }
         // options
         if (typeof options !== 'undefined') {
@@ -91,12 +89,12 @@ class Task extends stream.Readable {
     */
     configJob(inputs) {
         let self = this;
-        var jobOpt = {
-            'tagTask': self.staticTag,
-            'script': self.coreScript,
-            'modules': self.modules,
-            'exportVar': self.exportVar,
-            'inputs': self.concatJson(inputs) // (3)
+        let jobOpt = {
+            tagTask: self.staticTag,
+            script: self.coreScript,
+            modules: self.modules,
+            exportVar: self.exportVar,
+            inputs: self.concatJson(inputs) // (3)
         };
         return jobOpt;
     }
@@ -112,6 +110,8 @@ class Task extends stream.Readable {
     * To manage the output(s)
     */
     prepareResults(chunk) {
+        if (typeof chunk !== 'string')
+            throw 'ERROR : @chunk is not a string';
         var chunkJson = this.parseJson(chunk);
         var results = {
             'out': chunkJson
@@ -127,6 +127,8 @@ class Task extends stream.Readable {
     * for tests = zede}trgt{"toto" : { "yoyo" : 3}, "input" : "tototo\ntititi\ntatata"} rfr{}ojfr
     */
     findJson(stringT) {
+        if (typeof stringT !== 'string')
+            throw 'ERROR : @stringT is not a string';
         var toParse = stringT; // copy of string
         var open = '{', close = '}';
         var jsonStart = -1, jsonEnd = -1;
@@ -194,13 +196,15 @@ class Task extends stream.Readable {
     /*
     * DO NOT MODIFY
     * Process method.
-    * Use @chunk from @aStream to search for one JSON (at least), and then call the run method.
+    * Use @chunk from @aSlot to search for one JSON (at least), and then call the run method.
     */
-    process(chunk, aStream) {
+    process(chunk, aSlot) {
+        if (!typ.isSlot(aSlot))
+            throw 'ERROR : @aSlot is not a slot';
         var emitter = new events.EventEmitter();
-        var self = this; // self = this = TaskObject =//= aStream = a slot of self
+        var self = this; // self = this = TaskObject =//= aSlot = a slot of self
         var slotArray = this.getSlots();
-        self.feed_streamContent(chunk, aStream);
+        self.feed_streamContent(chunk, aSlot);
         var numOfRun = -1; // the length of the smallest jsonContent among all the slots's jsonContents
         for (let slt of slotArray) {
             logger_1.logger.log('DEBUG', 'slotArray[i] : \n' + util.format(slt));
@@ -240,32 +244,32 @@ class Task extends stream.Readable {
     }
     /*
     * DO NOT MODIFY
-    * Fill the streamContent of @aStream or @this with @chunk
+    * Fill the streamContent of @aSlot with @chunk
     */
-    feed_streamContent(chunk, aStream) {
+    feed_streamContent(chunk, aSlot) {
         if (typeof chunk == "undefined")
             throw 'ERROR : Chunk is ' + chunk;
         if (Buffer.isBuffer(chunk))
             chunk = chunk.toString(); // chunk can be either string or buffer but we need a string
-        var self = this;
-        var streamUsed = typeof aStream != "undefined" ? aStream : self;
-        streamUsed.streamContent += chunk;
-        logger_1.logger.log('DBEUG', 'streamContent : ' + streamUsed.streamContent);
+        if (!typ.isSlot(aSlot))
+            throw 'ERROR : @aSlot is not a slot';
+        aSlot.streamContent += chunk;
+        logger_1.logger.log('DBEUG', 'streamContent : ' + aSlot.streamContent);
     }
     /*
     * DO NOT MODIFY
-    * Fill the jsonContent of @aStream or @this thanks to the findJson method.
+    * Fill the jsonContent of @aSlot thanks to the findJson method.
     */
-    feed_jsonContent(aStream) {
-        var self = this;
-        var streamUsed = typeof aStream != "undefined" ? aStream : self;
-        var results = this.findJson(streamUsed.streamContent); // search for JSON
+    feed_jsonContent(aSlot) {
+        if (!typ.isSlot(aSlot))
+            throw 'ERROR : @aSlot is not a slot';
+        var results = this.findJson(aSlot.streamContent); // search for JSON
         logger_1.logger.log('DEBUG', 'results = \n' + util.format(results));
         if (results.jsonTab.length < 1)
             return; // if there is no JSON at all, bye bye
-        streamUsed.jsonContent = streamUsed.jsonContent.concat(results.jsonTab); // take all the JSON detected ...
-        streamUsed.streamContent = results.rest; // ... and keep the rest into streamContent
-        logger_1.logger.log('DEBUG', 'jsonContent of ' + streamUsed.symbol + ' = \n' + util.format(streamUsed.jsonContent));
+        aSlot.jsonContent = aSlot.jsonContent.concat(results.jsonTab); // take all the JSON detected ...
+        aSlot.streamContent = results.rest; // ... and keep the rest into streamContent
+        logger_1.logger.log('DEBUG', 'jsonContent of ' + aSlot.symbol + ' = \n' + util.format(aSlot.jsonContent));
     }
     /*
     * DO NOT MODIFY
@@ -333,11 +337,12 @@ class Task extends stream.Readable {
     * Slot = a new writable stream to receive one type of data (= one input)
     */
     createSlot(symbol) {
+        if (typeof symbol !== 'string')
+            throw 'ERROR : @symbol must be a string';
         var self = this;
         class slot extends stream.Writable {
             constructor(symbol, options) {
                 super(options);
-                this.goReading = false;
                 this.streamContent = '';
                 this.jsonContent = []; // array of JSONs
                 if (typeof symbol == 'undefined')
@@ -406,10 +411,12 @@ class Task extends stream.Readable {
     }
     /*
     * DO NOT MODIFY
-    * Remove the first element of the jsonContent of @aStream used for the computation.
+    * Remove the first element of the jsonContent of @aSlot used for the computation.
     */
-    shift_jsonContent(aStream) {
-        aStream.jsonContent.shift();
+    shift_jsonContent(aSlot) {
+        if (!typ.isSlot(aSlot))
+            throw 'ERROR : @aSlot is not a slot';
+        aSlot.jsonContent.shift();
     }
     /*
     * DO NOT MODIFY

@@ -9,6 +9,8 @@ import util = require('util');
 
 import func = require('./index');
 import {logger} from '../lib/logger';
+import typ = require('../types/index');
+
 
 
 var cacheDir: string = null,
@@ -82,7 +84,7 @@ let opt: {} = {
 func.JMsetup(opt)
 .on('ready', (myJM) => {
     let jobProfile = null; // "arwen_express" or "arwen_cpu" for example
-    let management = {
+    let management: typ.management = {
         'jobManager' : myJM,
         'jobProfile' : jobProfile
     }

@@ -29,6 +29,7 @@ The output is a literal with this form :
 */
 
 import tk = require ('../index');
+import typ = require('../types/index');
 
 declare var __dirname;
 
@@ -38,7 +39,7 @@ export class Simple extends tk.Task {
 	/*
 	* Initialize the task parameters.
 	*/
-	public constructor (management: any, options?: any) {
+	public constructor (management: typ.management, options?: any) {
 		super(management, options); // constructor of the tk.Task Object
         this.rootdir = __dirname; // always take the current directory of the task
         this.coreScript = this.rootdir + '/../data/simple.sh'; // the bash script (core of the Task)

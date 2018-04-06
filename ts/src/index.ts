@@ -18,16 +18,17 @@ A child class of Task must not override methods with a "DO NOT MODIFY" indicatio
 */
 
 import childPro = require('child_process');
-import events = require ('events');
-import fs = require ('fs');
-import JSON = require ('JSON');
-import jsonfile = require ('jsonfile');
-import stream = require ('stream');
+import events = require('events');
+import fs = require('fs');
+import JSON = require('JSON');
+import jsonfile = require('jsonfile');
+import stream = require('stream');
 import util = require('util');
 import uuid = require('uuid/v4');
 
 import { logger } from './lib/logger';
 import { loggerLevels } from './lib/logger';
+import typ = require('./types/index');
 
 declare var __dirname;
 
@@ -48,19 +49,16 @@ export abstract class Task extends stream.Readable {
 	* MUST BE ADAPTED FOR CHILD CLASSES
 	* Initialize the task parameters with values gived by user.
 	*/
-	protected constructor (management: any, options?: any) {
+	protected constructor (management: typ.management, options?: any) {
 		super(options);
 		if (typeof management == "undefined") throw 'ERROR : a literal for job management must be specified';
+		if (! typ.isManagement(management)) throw 'ERROR : wrong format of @management !';
 
-		if (management.hasOwnProperty('jobManager')) {
-			this.jobManager = management.jobManager;
-			if (management.hasOwnProperty('jobProfile')) {
-				this.jobProfile = management.jobProfile;
-			} else {
-				logger.log('INFO', 'no jobProfile specified -> take default jobProfile for the ' + this.staticTag + ' task.');
-			}
+		this.jobManager = management.jobManager;
+		if (management.hasOwnProperty('jobProfile')) {
+			this.jobProfile = management.jobProfile;
 		} else {
-			throw 'ERROR : no \'jobManager\' key specified in the job management literal.';
+			logger.log('INFO', 'no jobProfile specified -> take default jobProfile for the ' + this.staticTag + ' task.');
 		}
 
 		// options
@@ -100,14 +98,14 @@ export abstract class Task extends stream.Readable {
 	* 	(2) variables to export in the coreScript
 	*	(3) the inputs : stream or string or path in an array of JSONs
 	*/
-	protected configJob (inputs: {}[]): Object {
+	protected configJob (inputs: {}[]): typ.jobOpt {
 		let self = this;
-	    var jobOpt: {} = {
-	    	'tagTask' : <string> self.staticTag,
-	    	'script' : <string> self.coreScript,
-	        'modules' : <[string]> self.modules, // (1)
-	        'exportVar' : <{}> self.exportVar, // (2)
-	        'inputs' : <{}> self.concatJson(inputs) // (3)
+	    let jobOpt: typ.jobOpt = {
+	    	tagTask: self.staticTag,
+	    	script: self.coreScript,
+	        modules: self.modules, // (1)
+	        exportVar: self.exportVar, // (2)
+	        inputs: self.concatJson(inputs) // (3)
 	    };
 	    return jobOpt;
 	}
@@ -116,7 +114,7 @@ export abstract class Task extends stream.Readable {
 	* MUST BE ADAPTED FOR CHILD CLASSES
 	* Here manage the input(s)
 	*/
-	protected prepareJob (inputs: any[]): any {
+	protected prepareJob (inputs: any[]): typ.jobOpt {
 		return this.configJob(inputs);
 	}
 
@@ -125,6 +123,7 @@ export abstract class Task extends stream.Readable {
 	* To manage the output(s)
 	*/
 	protected prepareResults (chunk: string): any {
+		if (typeof chunk !== 'string') throw 'ERROR : @chunk is not a string';
 		var chunkJson = this.parseJson(chunk);
 		var results: {} = {
 			'out' : chunkJson
@@ -140,16 +139,17 @@ export abstract class Task extends stream.Readable {
 	* Returns in @results [literal] a list of JSON objects [@results.jsonTab] and @stringT without all JSON substrings [@results.rest].
 	* for tests = zede}trgt{"toto" : { "yoyo" : 3}, "input" : "tototo\ntititi\ntatata"} rfr{}ojfr
 	*/
-	private findJson (stringT: string): any {
-	var toParse: string = stringT; // copy of string
-	var open: string = '{', close: string = '}';
-	var jsonStart: number = -1, jsonEnd: number = -1;
-	var counter: number = 0;
-	var sub_toParse: string;
-	var result: any = {
-		"rest" : "",
-		"jsonTab" : []
-	};
+	private findJson (stringT: string): {rest: string, jsonTab: {}[]} {
+		if (typeof stringT !== 'string') throw 'ERROR : @stringT is not a string';
+		var toParse: string = stringT; // copy of string
+		var open: string = '{', close: string = '}';
+		var jsonStart: number = -1, jsonEnd: number = -1;
+		var counter: number = 0;
+		var sub_toParse: string;
+		var result = {
+			"rest" : "",
+			"jsonTab" : []
+		};
 		/*
 		* Check the existence of JSON extremities in @toParse [string].
 		* Method :
@@ -198,7 +198,7 @@ export abstract class Task extends stream.Readable {
 	* DO NOT MODIFY
 	* Find all the slots in @this and return them into an array (map method).
 	*/
-	protected getSlots (): any[] {
+	protected getSlots (): typ.slot[] {
 		return this.slotSymbols.map((sym, i, arr) => {
 			return this[sym];
 		});
@@ -207,13 +207,14 @@ export abstract class Task extends stream.Readable {
 	/*
 	* DO NOT MODIFY
 	* Process method.
-	* Use @chunk from @aStream to search for one JSON (at least), and then call the run method.
+	* Use @chunk from @aSlot to search for one JSON (at least), and then call the run method.
 	*/
-	private process (chunk: any, aStream: any): events.EventEmitter {
+	private process (chunk: any, aSlot: typ.slot): events.EventEmitter {
+		if (! typ.isSlot(aSlot)) throw 'ERROR : @aSlot is not a slot';
 		var emitter = new events.EventEmitter();
-		var self = this; // self = this = TaskObject =//= aStream = a slot of self
-		var slotArray: any[] = this.getSlots();
-		self.feed_streamContent(chunk, aStream);
+		var self = this; // self = this = TaskObject =//= aSlot = a slot of self
+		var slotArray: typ.slot[] = this.getSlots();
+		self.feed_streamContent(chunk, aSlot);
 
 		var numOfRun: number = -1; // the length of the smallest jsonContent among all the slots's jsonContents
 
@@ -258,35 +259,32 @@ export abstract class Task extends stream.Readable {
 
 	/*
 	* DO NOT MODIFY
-	* Fill the streamContent of @aStream or @this with @chunk
+	* Fill the streamContent of @aSlot with @chunk
 	*/
-	private feed_streamContent (chunk: any, aStream?: any): void {
+	private feed_streamContent (chunk: any, aSlot: typ.slot): void {
 		if (typeof chunk == "undefined") throw 'ERROR : Chunk is ' + chunk;
 		if (Buffer.isBuffer(chunk)) chunk = chunk.toString(); // chunk can be either string or buffer but we need a string
+		if (! typ.isSlot(aSlot)) throw 'ERROR : @aSlot is not a slot';
 
-		var self = this;
-		var streamUsed = typeof aStream != "undefined" ? aStream : self;
-
-		streamUsed.streamContent += chunk;
-		logger.log('DBEUG', 'streamContent : ' + streamUsed.streamContent);
+		aSlot.streamContent += chunk;
+		logger.log('DBEUG', 'streamContent : ' + aSlot.streamContent);
 	}
 
 	/*
 	* DO NOT MODIFY
-	* Fill the jsonContent of @aStream or @this thanks to the findJson method.
+	* Fill the jsonContent of @aSlot thanks to the findJson method.
 	*/
-	private feed_jsonContent (aStream?: any): void {
-		var self = this;
-		var streamUsed = typeof aStream != "undefined" ? aStream : self;
+	private feed_jsonContent (aSlot: typ.slot): void {
+		if (! typ.isSlot(aSlot)) throw 'ERROR : @aSlot is not a slot';
 
-		var results = this.findJson(streamUsed.streamContent); // search for JSON
+		var results = this.findJson(aSlot.streamContent); // search for JSON
 		logger.log('DEBUG', 'results = \n' + util.format(results));
 
 		if (results.jsonTab.length < 1) return; // if there is no JSON at all, bye bye
-		streamUsed.jsonContent = streamUsed.jsonContent.concat(results.jsonTab); // take all the JSON detected ...
-		streamUsed.streamContent = results.rest; // ... and keep the rest into streamContent
+		aSlot.jsonContent = aSlot.jsonContent.concat(results.jsonTab); // take all the JSON detected ...
+		aSlot.streamContent = results.rest; // ... and keep the rest into streamContent
 		
-		logger.log('DEBUG', 'jsonContent of ' + streamUsed.symbol + ' = \n' + util.format(streamUsed.jsonContent));
+		logger.log('DEBUG', 'jsonContent of ' + aSlot.symbol + ' = \n' + util.format(aSlot.jsonContent));
 	}
 
 	/*
@@ -301,7 +299,7 @@ export abstract class Task extends stream.Readable {
 		var self = this;
 		var job_uuid: string = null; // in case a uuid is passed
 
-		var jobOpt: any = self.prepareJob(jsonValue); // (1) // jsonValue = array of JSONs
+		var jobOpt: typ.jobOpt = self.prepareJob(jsonValue); // (1) // jsonValue = array of JSONs
 		if (jobOpt.inputs.hasOwnProperty('uuid')) {
 			job_uuid = jobOpt.inputs.uuid;
 			delete jobOpt.inputs['uuid'];
@@ -358,11 +356,11 @@ export abstract class Task extends stream.Readable {
 	* Slot = a new writable stream to receive one type of data (= one input)
 	*/
 	private createSlot (symbol: string): stream.Writable {
+		if (typeof symbol !== 'string') throw 'ERROR : @symbol must be a string';
 		var self = this;
 
 		class slot extends stream.Writable { // a slot is a Duplex
 			symbol: string; // key of the input = id of the input
-		    goReading: boolean = false;
 		    streamContent: string = '';
 		    jsonContent: {}[] = []; // array of JSONs
 			constructor (symbol: string, options?: any) {
@@ -435,10 +433,11 @@ export abstract class Task extends stream.Readable {
 
 	/*
 	* DO NOT MODIFY
-	* Remove the first element of the jsonContent of @aStream used for the computation.
+	* Remove the first element of the jsonContent of @aSlot used for the computation.
 	*/
-	private shift_jsonContent (aStream: any): void {
-		aStream.jsonContent.shift();
+	private shift_jsonContent (aSlot: typ.slot): void {
+		if (! typ.isSlot(aSlot)) throw 'ERROR : @aSlot is not a slot';
+		aSlot.jsonContent.shift();
 	}
 
 	/*

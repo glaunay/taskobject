@@ -15,13 +15,15 @@ import util = require('util')
 import du = require('./dualTask');
 import {logger} from '../lib/logger';
 import sim = require('./simpleTask');
+import typ = require('../types/index');
+
 
 
 /*
 * USED TO test the simpletask : only one slot (one input)
 * @management [literal] composed of 2 manadatory keys : 'jobManager' and 'jobProfile'
 */
-export var simpleTest = function (inputFile, management) {
+export var simpleTest = function (inputFile: string, management: typ.management): void {
 	//var uuid: string = "00000000-1111-2222-3333-444444444444"; // defined arbitrary but for tests
 
     var a = new sim.Simple(management);
@@ -58,7 +60,7 @@ export var simpleTest = function (inputFile, management) {
 *
 * @management [literal] composed of 2 manadatory keys : 'jobManager' and 'jobProfile'
 */
-export var dualTest = function (inputFile1, inputFile2, management) {
+export var dualTest = function (inputFile1: string, inputFile2: string, management: typ.management): void {
     var uuid: string = "00000000-1111-2222-3333-444444444444"; // defined arbitrary but for tests
 
     var a = new du.Dual(management, {'logLevel': 'info'});

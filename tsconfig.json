@@ -27,6 +27,7 @@
         "./ts/src/test/test.ts",
         "./ts/src/test/simpleTask.ts",
         "./ts/src/test/dualTask.ts",
-        "./ts/src/lib/logger.ts"
+        "./ts/src/lib/logger.ts",
+        "./ts/src/types/index.ts"
     ]
 }
