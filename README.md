@@ -110,39 +110,30 @@ This script needs some command line options. You can use option `-h` to display 
 
 ## Task developer
 
-### Installation
+A Task object must be used for only one job. Create a new instance of a a Task by job to run.  
+In our team we use TypeScript to develop but here the examples are in JavaScript. All the examples in this part are related.  
 
-In your main directory :
-
-```
-git clone https://github.com/melaniegarnier/taskobject.git
-cd ./taskobject/
-npm install
-```
-
-
-### Development of your proper task
-
-Coming soon...
-
-In our team we use TypeScript to develop but here the examples are in JavaScript.
-
-All the examples in this part are related.
-
-A Task object must be used for only one job. Create a new instance of a a Task by job to run.
-
-#### Inheritence
+### Inheritence
 Your class must inherit from the taskobject :
 ```
 var tk = require('taskobject');
-class MyCustomTask extends tk.Task {}
+class my_custom_task extends tk.Task {}
 ```
 
-#### The constructor
+> **Note** : in TypeScript you have to declare all the slots before writing the constructor :
+```
+class my_custom_task extends tk.Task {
+	public readonly myInputA;
+	public readonly myInputB;
+}
+```
+
+
+### The constructor
 1. call the parent class constructor,
 2. take the current directory of your Task class,
 3. construct the path to the bash script of your Task with `this.rootdir`,
-4. define a unique tag to your child class,
+4. define a unique tag to your child class (**same name of your task class**),
 5. define the Slot names of your Task, one for each input (in the `slotSymbols` array),
 6. initialize the Slots.   
 
@@ -160,7 +151,7 @@ constructor(management, options) {
 
 >**Note** : `management` (see the [Management Literal](#management-literal) part) and `options` (see the [Options Literal](#options-literal) part) are literals.
 
-#### Management Literal
+### Management Literal
 The `management` literal can contain 2 keys :
 - `jobManager` (object) : an instance of a JM (see the [Job Manager](#job-manager) section) [mandatory].
 - `jobProfile` (string) : the profile to run the job [optional]. This profile will be passed to the JM and will define the running settings for the job (nodes, queues, users, groups, etc.).   
@@ -174,7 +165,7 @@ let myManagement = {
 ```
 
 
-#### Options Literal
+### Options Literal
 The `options` literal can contain 3 keys :
 - `logLevel` (`string`) : specify a verbose level [optional]. Choose between `debug`, `info`, `success`, `warning`, `error` and `critical`.
 - `modules` (`[string]`) : an array of modules to load before the run of the core script [optional].
@@ -191,7 +182,7 @@ let myOptions = {
 ``` 
 
 
-#### The CoreScript
+### The CoreScript
 Every Task must have a bash script which runs the calculations. We named it the core script.  
 
 In your core script, you can access to :
@@ -225,19 +216,23 @@ echo "\" }"
 Coming soon...  
 A Job Manager (JM) is necessary to run a Task. In our case, we use the nslurm package ([GitHub repo][1], [NPM package][2]), adapted for SLURM.
 
-### SimpleTask
+### Simpletask
 
-Coming soon...  
-The simpleTask has been implemented only for the tests. It :
+The simpletask has been implemented only for the tests. It contains only one slot (`input`) :
 
-1. takes a JSON containing an "input" key as entry on its Writable interface (via a pipe, like `x.pipe(simpleTask)`),
-2. reverses the text of the value corresponding to the "input" key,
-3. creates a new JSON with a "reverse" key, the value being the reversed text,
-4. push this new JSON on its Readable interface. Then we can use a pipe on it, like `simpleTask.pipe(y)`.
+1. `simpletask.input` takes a JSON containing an "input" key (via a pipe, like `x.pipe(simpleTask)`).
+2. the simpletask reverses the text of the value corresponding to the "input" key.
+3. the simpletask creates a new JSON with a "reverse" key, the value being the reversed text.
+4. the simpletask pushes this new JSON on its Readable interface. Then we can use a pipe on it, like `simpleTask.pipe(y)`.
 
-### DualTask
+### Dualtask
 
-Coming soon...  
+The dualtask has been implemented only to test the task with two slots (`input1` and `input2`) :
+
+1. `dualtask.input1` takes a JSON containing an "input1" key (via a pipe, like `x.pipe(dualtask.input1)`). Same for "input2" (`y.pipe(dualtask.input2)`).
+2. the dualtask concatenates the content of input1 with the content of input2.
+3. the dualtask creates a new JSON with a "concatenated" key, the value being the concatenated text.
+4. the dualtask pushes this new JSON on the Readable interface of the dualtask. Then we can use a pipe on it, like `dualtask.pipe(z.slot)`.
 
 
 [1]: https://github.com/glaunay/nslurm

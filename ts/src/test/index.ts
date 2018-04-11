@@ -12,9 +12,9 @@ import stream = require('stream');
 import util = require('util')
 
 
-import du = require('./dualTask');
+import du = require('./dualtask');
 import {logger} from '../lib/logger';
-import sim = require('./simpleTask');
+import sim = require('./simpletask');
 import typ = require('../types/index');
 
 
@@ -26,7 +26,7 @@ import typ = require('../types/index');
 export var simpleTest = function (inputFile: string, management: typ.management): void {
 	//var uuid: string = "00000000-1111-2222-3333-444444444444"; // defined arbitrary but for tests
 
-    var a = new sim.Simple(management);
+    var a = new sim.simpletask(management);
     
     logger.log('DEBUG', a.input);
     logger.log('DEBUG', util.format(a));
@@ -63,7 +63,7 @@ export var simpleTest = function (inputFile: string, management: typ.management)
 export var dualTest = function (inputFile1: string, inputFile2: string, management: typ.management): void {
     var uuid: string = "00000000-1111-2222-3333-444444444444"; // defined arbitrary but for tests
 
-    var a = new du.Dual(management, {'logLevel': 'info'});
+    var a = new du.dualtask(management, {'logLevel': 'info'});
     logger.log('DEBUG', util.format(a));
     
     ///////////// pipeline /////////////

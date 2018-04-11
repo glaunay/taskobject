@@ -28,7 +28,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 
 */
 const tk = require("../index");
-class Simple extends tk.Task {
+class simpletask extends tk.Task {
     /*
     * Initialize the task parameters.
     */
@@ -60,4 +60,4 @@ class Simple extends tk.Task {
         return results;
     }
 }
-exports.Simple = Simple;
+exports.simpletask = simpletask;

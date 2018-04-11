@@ -25,8 +25,8 @@
         "./ts/src/index.ts",
         "./ts/src/test/index.ts",
         "./ts/src/test/test.ts",
-        "./ts/src/test/simpleTask.ts",
-        "./ts/src/test/dualTask.ts",
+        "./ts/src/test/simpletask.ts",
+        "./ts/src/test/dualtask.ts",
         "./ts/src/lib/logger.ts",
         "./ts/src/types/index.ts"
     ]

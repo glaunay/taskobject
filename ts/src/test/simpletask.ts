@@ -1,11 +1,11 @@
 
 /*
-*********************
-***** DUAL TASK *****
-*********************
+***********************
+***** SIMPLE TASK *****
+***********************
 
 * GOAL *
-A dual example of a child Task, that could be chained by .pipe() or .superPipe()
+A simple example of a child Task, that could be chained by .pipe() or .superPipe()
 
 * INPUT *
 Coming from a readable stream, the input must be like :
@@ -17,11 +17,10 @@ WARNING : "input" is an mandatory key.
 * OUTPUT *
 The output is a literal with this form :
 {
-    "concatenated": "tototiti"
+    "reverse": "otot"
 }
 
 */
-
 
 /***** TODO *****
 - doc
@@ -29,27 +28,25 @@ The output is a literal with this form :
 
 */
 
-
 import tk = require ('../index');
 import typ = require('../types/index');
 
 declare var __dirname;
 
-export class Dual extends tk.Task {
-    public readonly input1;
-    public readonly input2;
+export class simpletask extends tk.Task {
+    public readonly input;
 
 	/*
 	* Initialize the task parameters.
 	*/
 	public constructor (management: typ.management, options?: any) {
 		super(management, options); // constructor of the tk.Task Object
-        this.rootdir = __dirname; // always take the current directory of the task...
-        this.coreScript = this.rootdir + '/../data/dual.sh'; // the bash script (core of the Task)
-        this.staticTag = 'dualtask'; // unique !
+        this.rootdir = __dirname; // always take the current directory of the task
+        this.coreScript = this.rootdir + '/../data/simple.sh'; // the bash script (core of the Task)
+        this.staticTag = 'simpletask'; // unique !
         
         /* Creation of the slot symbols : only one here */
-        this.slotSymbols = ['input1', 'input2'];
+        this.slotSymbols = ['input'];
 
         super.initSlots(); // always init the Slots
 	}
@@ -76,4 +73,6 @@ export class Dual extends tk.Task {
         return results;
     }
 }
+
+
 

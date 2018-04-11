@@ -1,4 +1,4 @@
-"use strict";
+
 /*
 *********************
 ***** DUAL TASK *****
@@ -21,43 +21,59 @@ The output is a literal with this form :
 }
 
 */
-Object.defineProperty(exports, "__esModule", { value: true });
+
+
 /***** TODO *****
 - doc
 - mettre en place un commander et une fonction usage pour ce script au cas où
 
 */
-const tk = require("../index");
-class Dual extends tk.Task {
-    /*
-    * Initialize the task parameters.
-    */
-    constructor(management, options) {
-        super(management, options); // constructor of the tk.Task Object
+
+
+import tk = require ('../index');
+import typ = require('../types/index');
+
+declare var __dirname;
+
+export class dualtask extends tk.Task {
+    public readonly input1;
+    public readonly input2;
+
+	/*
+	* Initialize the task parameters.
+	*/
+	public constructor (management: typ.management, options?: any) {
+		super(management, options); // constructor of the tk.Task Object
         this.rootdir = __dirname; // always take the current directory of the task...
         this.coreScript = this.rootdir + '/../data/dual.sh'; // the bash script (core of the Task)
         this.staticTag = 'dualtask'; // unique !
+        
         /* Creation of the slot symbols : only one here */
         this.slotSymbols = ['input1', 'input2'];
+
         super.initSlots(); // always init the Slots
-    }
+	}
+
+
+
     /*
     * Here manage the input(s)
     */
-    prepareJob(inputs) {
+    protected prepareJob (inputs: any[]): any {
         return super.configJob(inputs);
     }
+
     /*
     * To manage the output(s).
     * The "input" key is necessary to run correctly in case of simpleTask_1.pipe(simpleTask_2)
     * because results.input of simpleTask_1 will be used as inputs.input for simpleTask_2. In fact,
     * the coreScript needs an "$input" variable (specified by the sbatch script, thanks to the JM).
     */
-    prepareResults(chunk) {
-        var results = {
-            'input': chunk
+    protected prepareResults (chunk: string): {} {
+        var results: {} = {
+            'input' : chunk
         };
         return results;
     }
 }
-exports.Dual = Dual;
+
