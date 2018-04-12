@@ -36,7 +36,6 @@ class simpletask extends tk.Task {
         super(management, options); // constructor of the tk.Task Object
         this.rootdir = __dirname; // always take the current directory of the task
         this.coreScript = this.rootdir + '/../data/simple.sh'; // the bash script (core of the Task)
-        this.staticTag = 'simpletask'; // unique !
         /* Creation of the slot symbols : only one here */
         this.slotSymbols = ['input'];
         super.initSlots(); // always init the Slots

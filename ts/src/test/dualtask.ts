@@ -46,7 +46,6 @@ export class dualtask extends tk.Task {
 		super(management, options); // constructor of the tk.Task Object
         this.rootdir = __dirname; // always take the current directory of the task...
         this.coreScript = this.rootdir + '/../data/dual.sh'; // the bash script (core of the Task)
-        this.staticTag = 'dualtask'; // unique !
         
         /* Creation of the slot symbols : only one here */
         this.slotSymbols = ['input1', 'input2'];

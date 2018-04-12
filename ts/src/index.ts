@@ -43,7 +43,7 @@ export abstract class Task extends stream.Readable {
 	protected coreScript: string = null; // path of the core script of the Task
 	protected readonly modules: string[] = []; // modules needed in the coreScript to run the Task
 	protected readonly exportVar: {} = {}; // variables to export, needed in the coreScript of the Task
-	protected staticTag: string = null; // tagTask : must be unique between all the Tasks
+	protected readonly staticTag: string = this.constructor.name; // tagTask : the name of the class
 
 	/*
 	* MUST BE ADAPTED FOR CHILD CLASSES

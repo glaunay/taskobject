@@ -37,7 +37,7 @@ class Task extends stream.Readable {
         this.coreScript = null; // path of the core script of the Task
         this.modules = []; // modules needed in the coreScript to run the Task
         this.exportVar = {}; // variables to export, needed in the coreScript of the Task
-        this.staticTag = null; // tagTask : must be unique between all the Tasks
+        this.staticTag = this.constructor.name; // tagTask : the name of the class
         if (typeof management == "undefined")
             throw 'ERROR : a literal for job management must be specified';
         if (!typ.isManagement(management))

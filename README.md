@@ -110,7 +110,7 @@ This script needs some command line options. You can use option `-h` to display 
 
 ## Task developer
 
-Each task class must be developp as a unique NPM package. The name of your class must be exactly the same as the name of your NPM package, and exactly the same as your `staticTag` (see the [The constructor](#the-constructor) part).  
+Each task class must be developp as a unique NPM package. The name of your class must be exactly the same as the name of your NPM package.  
 A Task object must be used for only one job. Create a new instance of a a Task by job to run.  
 In our team we use TypeScript to develop but here the examples are in JavaScript. All the examples in this part are related.  
 
@@ -134,9 +134,8 @@ class my_custom_task extends tk.Task {
 1. call the parent class constructor,
 2. take the current directory of your Task class,
 3. construct the path to the bash script of your Task with `this.rootdir`,
-4. define a unique tag to your child class (**same name of your task class**),
-5. define the Slot names of your Task, one for each input (in the `slotSymbols` array),
-6. initialize the Slots.   
+4. define the Slot names of your Task, one for each input (in the `slotSymbols` array),
+5. initialize the Slots.   
 
 Example :
 ```
@@ -144,9 +143,8 @@ constructor(management, options) {
 	super(management, options); // (1)
 	this.rootdir = __dirname; // (2)
 	this.coreScript = this.rootdir + '/data/myCoreScript.sh'; // (3)
-	this.staticTag = 'my_custom_task'; // (4)
-	this.slotSymbols = ['myInputA', 'myInputB']; // (5)
-	super.initSlots(); // (6)
+	this.slotSymbols = ['myInputA', 'myInputB']; // (4)
+	super.initSlots(); // (5)
 }
 ```
 
