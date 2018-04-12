@@ -110,6 +110,7 @@ This script needs some command line options. You can use option `-h` to display 
 
 ## Task developer
 
+Each task class must be developp as a unique NPM package. The name of your class must be exactly the same as the name of your NPM package, and exactly the same as your `staticTag` (see the [The constructor](#the-constructor) part).  
 A Task object must be used for only one job. Create a new instance of a a Task by job to run.  
 In our team we use TypeScript to develop but here the examples are in JavaScript. All the examples in this part are related.  
 
