@@ -1,6 +1,5 @@
 {
     "compilerOptions": {
-        "allowJs" : true, // to combine with "maxNodeModuleJsDepth" option
         "baseUrl": ".", // must be specified if "paths" is
         "lib": [
             "dom",

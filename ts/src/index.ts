@@ -36,13 +36,13 @@ export abstract class Task extends stream.Readable {
 	private readonly jobManager: any = null; // job manager (engineLayer version)
 	private readonly jobProfile: string = null; // "arwen_express" for example (see the different config into nslurm module)
 	private streamContent: string = ''; // content of the stream (concatenated @chunk)
-	private jsonContent: {}[] = []; // all the whole JSONs found in streamContent
+	private jsonContent: typ.stringMap[] = []; // all the whole JSONs found in streamContent
 	private goReading: boolean = false; // indicate when the read function can be used
 	protected slotSymbols: string[] = []; // all the slot symbols this task needs
 	protected rootdir: string = __dirname; // current directory of @this
 	protected coreScript: string = null; // path of the core script of the Task
 	protected readonly modules: string[] = []; // modules needed in the coreScript to run the Task
-	protected readonly exportVar: {} = {}; // variables to export, needed in the coreScript of the Task
+	protected readonly exportVar: typ.stringMap = {}; // variables to export, needed in the coreScript of the Task
 	protected readonly staticTag: string = this.constructor.name; // tagTask : the name of the class
 
 	/*
@@ -198,7 +198,7 @@ export abstract class Task extends stream.Readable {
 	* DO NOT MODIFY
 	* Find all the slots in @this and return them into an array (map method).
 	*/
-	protected getSlots (): typ.slot[] {
+	public getSlots (): typ.slot[] {
 		return this.slotSymbols.map((sym, i, arr) => {
 			return this[sym];
 		});
