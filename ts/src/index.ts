@@ -44,6 +44,7 @@ export abstract class Task extends stream.Readable {
 	protected readonly modules: string[] = []; // modules needed in the coreScript to run the Task
 	protected readonly exportVar: typ.stringMap = {}; // variables to export, needed in the coreScript of the Task
 	protected readonly staticTag: string = this.constructor.name; // tagTask : the name of the class
+	private outKey: string = 'out'; // key used for the outgoing JSON (with the results)
 
 	/*
 	* MUST BE ADAPTED FOR CHILD CLASSES
@@ -126,7 +127,7 @@ export abstract class Task extends stream.Readable {
 		if (typeof chunk !== 'string') throw 'ERROR : @chunk is not a string';
 		var chunkJson = this.parseJson(chunk);
 		var results: {} = {
-			'out' : chunkJson
+			[this.outKey] : chunkJson
 		};
     	return results;
 	}
@@ -349,6 +350,16 @@ export abstract class Task extends stream.Readable {
 			logger.log('DEBUG', '>>>>> read: this.goReading is F from ' + this.staticTag);
             this.goReading = false;
         }
+	}
+
+	/*
+	* Overcharging the pipe method to take the outKey of the slot destination (if this is a slot)
+	*/
+	public pipe (destination, options?: { end?: boolean }) {
+		if (typ.isSlot(destination)) {
+			this.outKey = destination.symbol;
+		}
+		return super.pipe(destination, options);
 	}
 
 	/*

@@ -38,7 +38,7 @@ export var simpleTest = function (inputFile: string, management: typ.management)
     //fileToStream(inputFile, "input", uuid).pipe(a.input)
 
     fileToStream(inputFile, "input").pipe(a.input)
-    .on('processed', results => {
+    a.on('processed', results => {
         logger.log('DEBUG', '**** data');
     })
     .on('err', (err, jobID) => {

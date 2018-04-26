@@ -53,10 +53,7 @@ class dualtask extends tk.Task {
     * the coreScript needs an "$input" variable (specified by the sbatch script, thanks to the JM).
     */
     prepareResults(chunk) {
-        var results = {
-            'input': chunk
-        };
-        return results;
+        return super.prepareResults(chunk);
     }
 }
 exports.dualtask = dualtask;

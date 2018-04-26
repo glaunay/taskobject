@@ -15,7 +15,7 @@ A Task contains Slots (`mytask.myslot`). These are objects inherited from the Wr
 
 ### Construct pipelines
 Regarding the two previous parts, we can easily construct a pipeline :
-```
+```javascript
 task_a.pipe(task_c.slot_1) // a -> c.1
 task_b.pipe(task_c.slot_2) // b -> c.2
 
@@ -35,7 +35,7 @@ Here `task_c` contains two Slots : `slot_1` and `slot_2`. The `slot_1` takes dat
 
 In your project repository :
 
-```
+```sh
 npm install taskobject
 ```
 
@@ -53,20 +53,20 @@ You can either make a test in your proper JS file or use one of the test files w
 
 In your JS script, import the test file :
 
-```
+```javascript
 var tkTest = require('./node_modules/taskobject/test/test');
 ```
 
 Then you have to start and set up a JM. We provide a method that takes care of that :
 
-```
+```javascript
 tkTest.JMsetup();
 ```
 
 `JMsetup` returns an object instance of EventEmitter. It emits `"ready"` when the JM is ready to receive jobs, and provide the JM object.
 Then, you can run the `simpleTest` method (or the `dualTest` method) :
 
-```
+```javascript
 tkTest.JMsetup().on('ready', function (JMobject) {
 	tkTest.simpleTest(inputFile, management);
 	tkTest.dualTest(inputFile1, inputFile2, management);
@@ -76,7 +76,7 @@ tkTest.JMsetup().on('ready', function (JMobject) {
 - `inputFile` are absolute path to your input file(s). No specific format needed.
 - `management` is a literal like :
 
-```
+```javascript
 let management = {
 	'jobManager' : JMobject // provided by the JMsetup method
 }
@@ -100,7 +100,7 @@ let management = {
 
 The previous tests are already implemented in the `./node_modules/taskobject/test/` directory. To use it :
 
-```
+```sh
 node ./node_modules/taskobject/test.js
 ```
 
@@ -116,13 +116,13 @@ In our team we use TypeScript to develop but here the examples are in JavaScript
 
 ### Inheritence
 Your class must inherit from the taskobject :
-```
+```javascript
 var tk = require('taskobject');
 class my_custom_task extends tk.Task {}
 ```
 
 > **Note** : in TypeScript you have to declare all the slots before writing the constructor :
-```
+```typescript
 class my_custom_task extends tk.Task {
 	public readonly myInputA;
 	public readonly myInputB;
@@ -138,7 +138,7 @@ class my_custom_task extends tk.Task {
 5. initialize the Slots.   
 
 Example :
-```
+```javascript
 constructor(management, options) {
 	super(management, options); // (1)
 	this.rootdir = __dirname; // (2)
@@ -156,7 +156,7 @@ The `management` literal can contain 2 keys :
 - `jobProfile` (string) : the profile to run the job [optional]. This profile will be passed to the JM and will define the running settings for the job (nodes, queues, users, groups, etc.).   
 
 Example :
-```
+```javascript
 let myManagement = {
 	'jobManager' : JMobject,
 	'jobProfile' : 'default'
@@ -171,7 +171,7 @@ The `options` literal can contain 3 keys :
 - `exportVar` (`literal`) : a dictionary of the variable to export before the run of the core script [optional]. Each key is the name of the variable and each value is its content.  
 
 Example :
-```
+```javascript
 let myOptions = {
 	'logLevel': 'debug',
     'modules' : ['myModule1', 'myModule2'],
@@ -192,7 +192,7 @@ In your core script, you can access to :
 **Warning** : the core script you create must make `echo` only to contruct a JSON containing the results. Otherwise, your Task will crash.  
 
 Example :
-```
+```sh
 # Take the content of myInputA :
 contentInputA=`cat $myinputA` # (1)
 

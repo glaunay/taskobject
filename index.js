@@ -38,6 +38,7 @@ class Task extends stream.Readable {
         this.modules = []; // modules needed in the coreScript to run the Task
         this.exportVar = {}; // variables to export, needed in the coreScript of the Task
         this.staticTag = this.constructor.name; // tagTask : the name of the class
+        this.outKey = 'out'; // key used for the outgoing JSON (with the results)
         if (typeof management == "undefined")
             throw 'ERROR : a literal for job management must be specified';
         if (!typ.isManagement(management))
@@ -114,7 +115,7 @@ class Task extends stream.Readable {
             throw 'ERROR : @chunk is not a string';
         var chunkJson = this.parseJson(chunk);
         var results = {
-            'out': chunkJson
+            [this.outKey]: chunkJson
         };
         return results;
     }
@@ -331,6 +332,15 @@ class Task extends stream.Readable {
             logger_1.logger.log('DEBUG', '>>>>> read: this.goReading is F from ' + this.staticTag);
             this.goReading = false;
         }
+    }
+    /*
+    * Overcharging the pipe method to take the outKey of the slot destination (if this is a slot)
+    */
+    pipe(destination, options) {
+        if (typ.isSlot(destination)) {
+            this.outKey = destination.symbol;
+        }
+        return super.pipe(destination, options);
     }
     /*
     * DO NOT MODIFY

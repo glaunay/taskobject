@@ -26,8 +26,8 @@ exports.simpleTest = function (inputFile, management) {
     ///////////// pipeline /////////////
     //process.stdin.pipe(a.input); // {"input" : "toto"} for example
     //fileToStream(inputFile, "input", uuid).pipe(a.input)
-    exports.fileToStream(inputFile, "input").pipe(a.input)
-        .on('processed', results => {
+    exports.fileToStream(inputFile, "input").pipe(a.input);
+    a.on('processed', results => {
         logger_1.logger.log('DEBUG', '**** data');
     })
         .on('err', (err, jobID) => {
