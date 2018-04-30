@@ -55,18 +55,19 @@ export class simpletask extends tk.Task {
     /*
     * Here manage the input(s)
     */
-    protected prepareJob (inputs: any[]): any {
+    protected prepareJob (inputs: typ.stringMap[]): typ.jobOpt {
         return super.configJob(inputs);
     }
 
     /*
     * To manage the output(s).
-    * The "input" key is necessary to run correctly in case of simpleTask_1.pipe(simpleTask_2)
-    * because results.input of simpleTask_1 will be used as inputs.input for simpleTask_2. In fact,
-    * the coreScript needs an "$input" variable (specified by the sbatch script, thanks to the JM).
+    * Remark : we don't want the 'reverse' key in the out going JSON.
     */
-    protected prepareResults (chunk: string): {} {
-        return super.prepareResults(chunk);
+    protected prepareResults (chunkJson: typ.stringMap): typ.stringMap {
+        if (! typ.isStringMap(chunkJson)) throw 'ERROR : @chunkJson must be a string map !';
+        return {
+            [this.outKey] : chunkJson.reverse
+        };
     }
 }
 
