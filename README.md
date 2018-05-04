@@ -112,7 +112,64 @@ This script needs some command line options. You can use option `-h` to display 
 
 Each task class must be developp as a unique NPM package. The name of your class must be exactly the same as the name of your NPM package.  
 A Task object must be used for only one job. Create a new instance of a a Task by job to run.  
-In our team we use TypeScript to develop but here the examples are in JavaScript. All the examples in this part are related.  
+In our team we use TypeScript to develop but here the examples are in JavaScript. All the examples in this part are related.
+
+### Directory tree
+Your directories must be organized like the fllowing direcotry tree :
+
+```sh
+.
+├── LICENSE
+├── README.md
+├── data
+│   └── myCoreScript.sh
+├── index.js
+├── package.json
+├── test
+│   ├── index.js
+│   ├── test.js
+│   └── test.txt
+├── ts
+│   └── src
+│       ├── index.ts
+│       ├── test
+│       │   ├── index.ts
+│       │   └── test.ts
+│       └── types
+│           └── index.ts
+├── tsconfig.json
+└── types
+    └── index.js
+```
+
+> **Note** : the example here contains TypeScript files too (with the `./ts/src/`, `./types/` directories and the `tsconfig.json` file).
+
+### The CoreScript
+Every Task must have a bash script which runs the calculations. We named it the core script.  
+
+In your core script, you can access to :
+1. the inputs you defined thanks to the Slots (in the `slotSymbols` array, see [The constructor](#the-constructor) part),
+2. the modules you gave to the `options` literal (see [Options Literal](#options-literal) part),
+3. the variables you gave to the `options` literal (see [Options Literal](#options-literal) part).
+
+**Warning** : the core script you create must make `echo` only to contruct a JSON containing the results. Otherwise, your Task will crash.  
+
+Example :
+```sh
+# Take the content of myInputA :
+contentInputA=`cat $myinputA` # (1)
+
+# Run myModule1 with myInputB as a parameter :
+myModule1 $myInputB > /dev/null # (2)
+
+# Run myModule2 with the options : ' -ncpu 16 -file /path/toto.txt ' :
+myModule2 $myVar_module2 > /dev/null # (3)
+
+# Create the JSON as output :
+echo "{ \"pathOfCurrentDir\" : \""
+echo $(pwd) # the path of the current directory
+echo "\" }"
+```
 
 ### Inheritence
 Your class must inherit from the taskobject :
@@ -150,6 +207,25 @@ constructor(management, options) {
 
 >**Note** : `management` (see the [Management Literal](#management-literal) part) and `options` (see the [Options Literal](#options-literal) part) are literals.
 
+### The methods to implement
+You have to override two methods :
+
+```javascript
+prepareJob (inputs) {
+	return super.configJob(inputs);
+}
+
+/* REMARK : 'pathOfCurrentDir' is the key you gave in your core script as JSON output */
+prepareResults (chunkJson) {
+	return {
+		[this.outKey] : chunkJson.pathOfCurrentDir 
+	}
+}
+```
+
+These examples can be simply copied-pasted as it for your usage.
+
+
 ### Management Literal
 The `management` literal can contain 2 keys :
 - `jobManager` (object) : an instance of a JM (see the [Job Manager](#job-manager) section) [mandatory].
@@ -180,33 +256,6 @@ let myOptions = {
 };
 ``` 
 
-
-### The CoreScript
-Every Task must have a bash script which runs the calculations. We named it the core script.  
-
-In your core script, you can access to :
-1. the inputs you defined thanks to the Slots (in the `slotSymbols` array, see [The constructor](#the-constructor) part),
-2. the modules you gave to the `options` literal (see [Options Literal](#options-literal) part),
-3. the variables you gave to the `options` literal (see [Options Literal](#options-literal) part).
-
-**Warning** : the core script you create must make `echo` only to contruct a JSON containing the results. Otherwise, your Task will crash.  
-
-Example :
-```sh
-# Take the content of myInputA :
-contentInputA=`cat $myinputA` # (1)
-
-# Run myModule1 with myInputB as a parameter :
-myModule1 $myInputB > /dev/null # (2)
-
-# Run myModule2 with the options : ' -ncpu 16 -file /path/toto.txt ' :
-myModule2 $myVar_module2 > /dev/null # (3)
-
-# Create the JSON as output :
-echo "{ \"pathOfCurrentDir\" : \""
-echo $(pwd) # the path of the current directory
-echo "\" }"
-```
 
 ## More
 
