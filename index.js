@@ -100,26 +100,6 @@ class Task extends stream.Readable {
         return jobOpt;
     }
     /*
-    * MUST BE ADAPTED FOR CHILD CLASSES
-    * Here manage the input(s)
-    */
-    prepareJob(inputs) {
-        return this.configJob(inputs);
-    }
-    /*
-    * MUST BE ADAPTED FOR CHILD CLASSES
-    * To manage the output(s)
-    */
-    prepareResults(chunk) {
-        if (typeof chunk !== 'string')
-            throw 'ERROR : @chunk is not a string';
-        var chunkJson = this.parseJson(chunk);
-        var results = {
-            [this.outKey]: chunkJson
-        };
-        return results;
-    }
-    /*
     * DO NOT MODIFY
     * Parse @stringT [string] to find all JSON objects into.
     * Method : look at every character in the string to find the start & the end of JSONs,
@@ -300,9 +280,18 @@ class Task extends stream.Readable {
             stdout.on('data', buf => { chunk += buf.toString(); }); // (3)
             stdout.on('end', () => {
                 self.async(function () {
-                    var res = self.prepareResults(chunk);
+                    var res = self.prepareResults(self.parseJson(chunk));
                     if (typeof jobOpt.namespace !== 'undefined')
                         res['uuid'] = jobOpt.namespace;
+                    /* CONFLICTS to pass to version 2.0.0
+                    <<<<<<< HEAD
+                                        var res = self.prepareResults(chunk);
+                                        if (typeof jobOpt.namespace !== 'undefined') res['uuid'] = jobOpt.namespace;
+                    =======
+                                        var res = self.prepareResults(self.parseJson(chunk));
+                                        if (job_uuid !== null) res['uuid'] = job_uuid;
+                    >>>>>>> e932561c3d62115c7c4861152e3ae5b3d6da5922
+                    */
                     return res;
                 }).on('end', results => {
                     self.goReading = true;

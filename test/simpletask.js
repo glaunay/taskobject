@@ -28,6 +28,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 
 */
 const tk = require("../index");
+const typ = require("../types/index");
 class simpletask extends tk.Task {
     /*
     * Initialize the task parameters.
@@ -48,12 +49,14 @@ class simpletask extends tk.Task {
     }
     /*
     * To manage the output(s).
-    * The "input" key is necessary to run correctly in case of simpleTask_1.pipe(simpleTask_2)
-    * because results.input of simpleTask_1 will be used as inputs.input for simpleTask_2. In fact,
-    * the coreScript needs an "$input" variable (specified by the sbatch script, thanks to the JM).
+    * Remark : we don't want the 'reverse' key in the out going JSON.
     */
-    prepareResults(chunk) {
-        return super.prepareResults(chunk);
+    prepareResults(chunkJson) {
+        if (!typ.isStringMap(chunkJson))
+            throw 'ERROR : @chunkJson must be a string map !';
+        return {
+            [this.outKey]: chunkJson.reverse
+        };
     }
 }
 exports.simpletask = simpletask;

@@ -44,7 +44,7 @@ export abstract class Task extends stream.Readable {
 	protected readonly modules: string[] = []; // modules needed in the coreScript to run the Task
 	protected readonly exportVar: typ.stringMap = {}; // variables to export, needed in the coreScript of the Task
 	protected readonly staticTag: string = this.constructor.name; // tagTask : the name of the class
-	private outKey: string = 'out'; // key used for the outgoing JSON (with the results)
+	protected outKey: string = 'out'; // key used for the outgoing JSON (with the results)
 
 	/*
 	* MUST BE ADAPTED FOR CHILD CLASSES
@@ -99,7 +99,7 @@ export abstract class Task extends stream.Readable {
 	* 	(2) variables to export in the coreScript
 	*	(3) the inputs : stream or string or path in an array of JSONs
 	*/
-	protected configJob (inputs: {}[]): typ.jobOpt {
+	protected configJob (inputs: typ.stringMap[]): typ.jobOpt {
 		let self = this;
 	    let jobOpt: typ.jobOpt = {
 	    	tagTask: self.staticTag,
@@ -115,22 +115,13 @@ export abstract class Task extends stream.Readable {
 	* MUST BE ADAPTED FOR CHILD CLASSES
 	* Here manage the input(s)
 	*/
-	protected prepareJob (inputs: any[]): typ.jobOpt {
-		return this.configJob(inputs);
-	}
+	protected abstract prepareJob (inputs: typ.stringMap[]): typ.jobOpt
 
 	/*
 	* MUST BE ADAPTED FOR CHILD CLASSES
 	* To manage the output(s)
 	*/
-	protected prepareResults (chunk: string): any {
-		if (typeof chunk !== 'string') throw 'ERROR : @chunk is not a string';
-		var chunkJson = this.parseJson(chunk);
-		var results: {} = {
-			[this.outKey] : chunkJson
-		};
-    	return results;
-	}
+	protected abstract prepareResults (chunkJson: typ.stringMap): typ.stringMap;
 
 	/*
 	* DO NOT MODIFY
@@ -140,7 +131,7 @@ export abstract class Task extends stream.Readable {
 	* Returns in @results [literal] a list of JSON objects [@results.jsonTab] and @stringT without all JSON substrings [@results.rest].
 	* for tests = zede}trgt{"toto" : { "yoyo" : 3}, "input" : "tototo\ntititi\ntatata"} rfr{}ojfr
 	*/
-	private findJson (stringT: string): {rest: string, jsonTab: {}[]} {
+	private findJson (stringT: string): {rest: string, jsonTab: typ.stringMap[]} {
 		if (typeof stringT !== 'string') throw 'ERROR : @stringT is not a string';
 		var toParse: string = stringT; // copy of string
 		var open: string = '{', close: string = '}';
@@ -180,7 +171,7 @@ export abstract class Task extends stream.Readable {
 						jsonEnd = i;
 						// prepare the JSON object
 						sub_toParse = toParse.substring(jsonStart, jsonEnd + 1);
-						var myJson = this.parseJson(sub_toParse);
+						var myJson: typ.stringMap = this.parseJson(sub_toParse);
 						if (myJson === null) throw "WARNING : make sure your data contains well writing \"\\n\" !";
 						result.jsonTab.push(myJson);
 
@@ -295,7 +286,7 @@ export abstract class Task extends stream.Readable {
 	* (3) receive all the data
 	* (4) at the end of the reception, prepare the results & send
 	*/
-	private run (jsonValue: {}[]): events.EventEmitter {
+	private run (jsonValue: typ.stringMap[]): events.EventEmitter {
 		var emitter = new events.EventEmitter();
 		var self = this;
 
@@ -318,8 +309,17 @@ export abstract class Task extends stream.Readable {
             stdout.on('data', buf => { chunk += buf.toString(); }); // (3)
             stdout.on('end', () => {
             	self.async(function () {
+            		var res = self.prepareResults(self.parseJson(chunk));
+            		if (typeof jobOpt.namespace !== 'undefined') res['uuid'] = jobOpt.namespace;
+/* CONFLICTS to pass to version 2.0.0
+<<<<<<< HEAD
             		var res = self.prepareResults(chunk);
             		if (typeof jobOpt.namespace !== 'undefined') res['uuid'] = jobOpt.namespace;
+=======
+            		var res = self.prepareResults(self.parseJson(chunk));
+            		if (job_uuid !== null) res['uuid'] = job_uuid;
+>>>>>>> e932561c3d62115c7c4861152e3ae5b3d6da5922
+*/
             		return res;
             	}).on('end', results => { // (4)
             		self.goReading = true;
@@ -372,7 +372,7 @@ export abstract class Task extends stream.Readable {
 		class slot extends stream.Writable { // a slot is a Duplex
 			symbol: string; // key of the input = id of the input
 		    streamContent: string = '';
-		    jsonContent: {}[] = []; // array of JSONs
+		    jsonContent: typ.stringMap[] = []; // array of JSONs
 			constructor (symbol: string, options?: any) {
 		    	super(options);
 		    	if (typeof symbol == 'undefined') throw 'ERROR : a symbol must be specified !';
@@ -427,8 +427,8 @@ export abstract class Task extends stream.Readable {
 	* DO NOT MODIFY
 	* Concatenate JSONs that are in the same array
 	*/
-	private concatJson (jsonTab: {}[]): {} {
-		var newJson: {} = {};
+	private concatJson (jsonTab: typ.stringMap[]): typ.stringMap {
+		var newJson: typ.stringMap = {};
 		logger.log('DEBUG', 'json array to concatenate = \n' + util.format(jsonTab));
 
 		for (let i = 0; i < jsonTab.length; i ++) {
@@ -454,9 +454,9 @@ export abstract class Task extends stream.Readable {
 	* DO NOT MODIFY
 	* Open a json file and return its content if no error otherwise return null
 	*/
-	public parseJsonFile (file: string): {} {
+	public parseJsonFile (file: string): typ.stringMap {
 		try {
-			var dict: {} = jsonfile.readFileSync(file, 'utf8');
+			var dict: typ.stringMap = jsonfile.readFileSync(file, 'utf8');
 			return dict;
 		} catch (err) {
 			logger.log('ERROR', 'in parseJsonFile() :\n' + err);
@@ -468,7 +468,7 @@ export abstract class Task extends stream.Readable {
 	* DO NOT MODIFY
 	* Parse @data to check if it is in JSON format.
 	*/
-	public parseJson (data: {}): {} {
+	public parseJson (data: string): typ.stringMap {
 		try { return JSON.parse(data) }
 		catch (err) {
 			logger.log('ERROR', 'in parseJson() :\n' + err);
