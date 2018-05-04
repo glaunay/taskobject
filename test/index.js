@@ -8,7 +8,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const events = require("events");
 const fs = require("fs");
 const localIP = require("my-local-ip");
-const jobManager = require("nslurm");
+const ms_jobManager = require("ms-jobmanager/build/nativeJS/job-manager-client");
 const stream = require("stream");
 const util = require("util");
 const du = require("./dualtask");
@@ -46,7 +46,7 @@ exports.simpleTest = function (inputFile, management) {
 * @management [literal] composed of 2 manadatory keys : 'jobManager' and 'jobProfile'
 */
 exports.dualTest = function (inputFile1, inputFile2, management) {
-    var uuid = "00000000-1111-2222-3333-444444444444"; // defined arbitrary but for tests
+    //var uuid: string = "00000000-1111-2222-3333-444444444444"; // defined arbitrary but for tests
     var a = new du.dualtask(management, { 'logLevel': 'info' });
     logger_1.logger.log('DEBUG', util.format(a));
     ///////////// pipeline /////////////
@@ -66,52 +66,22 @@ exports.dualTest = function (inputFile1, inputFile2, management) {
     a.pipe(process.stdout);
 };
 /*
-* Function to run jobManager.
-* @opt [literal] contains the options to setup and start the JM. Key recognized by this method :
-*     - bean [literal] like the file nslurm/config/arwenConf.json, optional
-*     - optCacheDir [array] each element is a path to a previous cacheDir (for jobManager indexation), optional
-*     - engineType [string] can be 'nslurm' for example, optional
+* Function to run the jobManager.
 */
-exports.JMsetup = function (opt) {
+function JMsetup() {
     let emitter = new events.EventEmitter();
-    // @opt treatment
-    if (!opt) {
-        var opt = {};
-    }
-    if (!opt.hasOwnProperty('optCacheDir'))
-        opt['optCacheDir'] = null;
-    if (!opt.hasOwnProperty('bean'))
-        opt['bean'] = {};
-    if (!opt.bean.hasOwnProperty('engineType'))
-        opt.bean['engineType'] = 'emulator';
-    if (!opt.bean.hasOwnProperty('cacheDir')) {
-        logger_1.logger.log('WARNING', 'No cacheDir specified in opt.bean, so we take current directory');
-        opt.bean['cacheDir'] = process.cwd() + '/cacheDir';
-        try {
-            fs.mkdirSync(opt.bean.cacheDir);
-        }
-        catch (err) {
-            if (err.code !== 'EEXIST')
-                throw err;
-        }
-    }
     let startData = {
-        'cacheDir': opt.bean.cacheDir,
-        'tcp': localIP(),
-        'port': '2467'
+        TCPip: localIP(),
+        port: '2020'
     };
-    //jobManager.debugOn();
-    jobManager.index(opt.optCacheDir); // optCacheDir can be null
-    jobManager.configure({ "engine": opt.bean.engineType, "binaries": opt.bean.binaries });
-    jobManager.start(startData);
-    jobManager.on('exhausted', function () {
-        emitter.emit('exhausted', jobManager);
-    });
-    jobManager.on('ready', function () {
-        emitter.emit('ready', jobManager);
+    startData['TCPip'] = 'localhost';
+    console.log(startData);
+    ms_jobManager.start(startData).on('ready', () => {
+        emitter.emit('ready', ms_jobManager);
     });
     return emitter;
-};
+}
+exports.JMsetup = JMsetup;
 /*
 * Take a file @fi, put its content into a readable stream, in JSON format, with a @uuid if specified.
 */

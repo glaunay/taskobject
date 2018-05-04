@@ -7,7 +7,7 @@ A SIMPLE FILE WITH THE TEST METHODS
 import events = require ('events');
 import fs = require ('fs');
 import localIP = require('my-local-ip');
-import jobManager = require('nslurm');
+import ms_jobManager = require('ms-jobmanager/build/nativeJS/job-manager-client');
 import stream = require('stream');
 import util = require('util')
 
@@ -61,7 +61,7 @@ export var simpleTest = function (inputFile: string, management: typ.management)
 * @management [literal] composed of 2 manadatory keys : 'jobManager' and 'jobProfile'
 */
 export var dualTest = function (inputFile1: string, inputFile2: string, management: typ.management): void {
-    var uuid: string = "00000000-1111-2222-3333-444444444444"; // defined arbitrary but for tests
+    //var uuid: string = "00000000-1111-2222-3333-444444444444"; // defined arbitrary but for tests
 
     var a = new du.dualtask(management, {'logLevel': 'info'});
     logger.log('DEBUG', util.format(a));
@@ -90,47 +90,21 @@ export var dualTest = function (inputFile1: string, inputFile2: string, manageme
 }
 
 /*
-* Function to run jobManager.
-* @opt [literal] contains the options to setup and start the JM. Key recognized by this method :
-*     - bean [literal] like the file nslurm/config/arwenConf.json, optional
-*     - optCacheDir [array] each element is a path to a previous cacheDir (for jobManager indexation), optional
-*     - engineType [string] can be 'nslurm' for example, optional
+* Function to run the jobManager.
 */
-export var JMsetup = function (opt?: any): events.EventEmitter {
+export function JMsetup (): events.EventEmitter {
     let emitter = new events.EventEmitter();
 
-    // @opt treatment
-    if (! opt) { var opt: any = {}; }
-    if (! opt.hasOwnProperty('optCacheDir')) opt['optCacheDir'] = null;
-    if (! opt.hasOwnProperty('bean')) opt['bean'] = {};
-    if (! opt.bean.hasOwnProperty('engineType')) opt.bean['engineType'] = 'emulator';
-    if (! opt.bean.hasOwnProperty('cacheDir')) {
-    	logger.log('WARNING', 'No cacheDir specified in opt.bean, so we take current directory');
-    	opt.bean['cacheDir'] = process.cwd() + '/cacheDir';
-    	try { fs.mkdirSync(opt.bean.cacheDir); }
-    	catch (err) {
-    		if (err.code !== 'EEXIST') throw err;
-    	}
-    }
-
     let startData: {} = {
-        'cacheDir' : opt.bean.cacheDir,
-        'tcp' : localIP(),
-        'port' : '2467'
+        TCPip : localIP(),
+        port : '2020'
     }
+    startData['TCPip'] = 'localhost';
+    console.log(startData)
 
-    //jobManager.debugOn();
-
-    jobManager.index(opt.optCacheDir); // optCacheDir can be null
-    jobManager.configure({"engine" : opt.bean.engineType, "binaries" : opt.bean.binaries });
-    jobManager.start(startData);
-
-    jobManager.on('exhausted', function(){
-        emitter.emit('exhausted', jobManager);
-    });
-    jobManager.on('ready', function() {
-        emitter.emit('ready', jobManager);
-    });
+    ms_jobManager.start(startData).on('ready', () => {
+        emitter.emit('ready', ms_jobManager);
+    })
     return emitter;
 }
 

@@ -90,7 +90,8 @@ export interface jobOpt {
     exportVar: {},
     inputs: {
     	uuid?: string
-    }
+    },
+    namespace?: string
 }
 
 export function isJobOpt (arg: any): arg is jobOpt {
@@ -115,6 +116,9 @@ export function isJobOpt (arg: any): arg is jobOpt {
 
 	if (arg.inputs.hasOwnProperty('uuid')) {
 		if (typeof arg.inputs.uuid !== 'string') return false;
+	}
+	if (arg.hasOwnProperty('namespace')) {
+		if (typeof arg.namespace !== 'string') return false;
 	}
 	return true;
 }

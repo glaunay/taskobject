@@ -298,16 +298,15 @@ export abstract class Task extends stream.Readable {
 	private run (jsonValue: {}[]): events.EventEmitter {
 		var emitter = new events.EventEmitter();
 		var self = this;
-		var job_uuid: string = null; // in case a uuid is passed
 
 		var jobOpt: typ.jobOpt = self.prepareJob(jsonValue); // (1) // jsonValue = array of JSONs
-		if (jobOpt.inputs.hasOwnProperty('uuid')) {
-			job_uuid = jobOpt.inputs.uuid;
+		if (jobOpt.inputs.hasOwnProperty('uuid')) { // in case a uuid is passed
+			jobOpt['namespace'] = jobOpt.inputs.uuid;
 			delete jobOpt.inputs['uuid'];
 		}
 		logger.log('DEBUG', 'jobOpt = ' + JSON.stringify(jobOpt));
 
-		var j = self.jobManager.push(self.jobProfile, jobOpt, job_uuid); // (2)
+		var j = self.jobManager.push(jobOpt); // (2)
 		j.on('completed', (stdout, stderr, jobObject) => {
 			if (stderr) {
                 stderr.on('data', buf => {
@@ -320,7 +319,7 @@ export abstract class Task extends stream.Readable {
             stdout.on('end', () => {
             	self.async(function () {
             		var res = self.prepareResults(chunk);
-            		if (job_uuid !== null) res['uuid'] = job_uuid;
+            		if (typeof jobOpt.namespace !== 'undefined') res['uuid'] = jobOpt.namespace;
             		return res;
             	}).on('end', results => { // (4)
             		self.goReading = true;

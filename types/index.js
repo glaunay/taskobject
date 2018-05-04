@@ -134,6 +134,10 @@ function isJobOpt(arg) {
         if (typeof arg.inputs.uuid !== 'string')
             return false;
     }
+    if (arg.hasOwnProperty('namespace')) {
+        if (typeof arg.namespace !== 'string')
+            return false;
+    }
     return true;
 }
 exports.isJobOpt = isJobOpt;
