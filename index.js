@@ -198,7 +198,6 @@ class Task extends stream.Readable {
         }
         logger_1.logger.log('DEBUG', 'numOfRun = ' + numOfRun);
         for (let j = 0; j < numOfRun; j++) {
-            logger_1.logger.log('INFO', '***** synchronous process');
             logger_1.logger.log('DEBUG', 'j = ' + j);
             var inputArray = slotArray.map((slt) => slt.jsonContent[j]);
             // for tests
@@ -209,10 +208,10 @@ class Task extends stream.Readable {
                 .on('treated', results => {
                 // remove the first element in the jsonContent of every slots :
                 self.applyOnArray(self.shift_jsonContent, slotArray);
-                emitter.emit('processed');
+                emitter.emit('processed', results);
             })
                 .on('error', (err) => {
-                emitter.emit('error');
+                emitter.emit('error', err);
             })
                 .on('stderrContent', buf => {
                 emitter.emit('stderrContent', buf);
@@ -337,7 +336,7 @@ class Task extends stream.Readable {
     createSlot(symbol) {
         if (typeof symbol !== 'string')
             throw 'ERROR : @symbol must be a string';
-        var self = this;
+        var thisTask = this; // keep the reference to this task
         class slot extends stream.Writable {
             constructor(symbol, options) {
                 super(options);
@@ -348,18 +347,18 @@ class Task extends stream.Readable {
                 this.symbol = symbol;
             }
             _write(chunk, encoding, callback) {
-                self.process(chunk, this)
-                    .on('processed', s => {
-                    self.emit('processed', s);
+                thisTask.process(chunk, this)
+                    .on('processed', res => {
+                    thisTask.emit('processed', res);
                 })
-                    .on('error', s => {
-                    self.emit('err', s);
+                    .on('error', err => {
+                    thisTask.emit('err', err);
                 })
                     .on('stderrContent', buf => {
-                    self.emit('stderrContent', buf);
+                    thisTask.emit('stderrContent', buf);
                 })
                     .on('lostJob', (msg, jid) => {
-                    self.emit('lostJob', msg, jid);
+                    thisTask.emit('lostJob', msg, jid);
                 });
                 callback();
             }

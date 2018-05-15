@@ -97,7 +97,7 @@ export function JMsetup (): events.EventEmitter {
 
     let startData: {} = {
         TCPip : localIP(),
-        port : '2020'
+        port : '2326'
     }
     startData['TCPip'] = 'localhost';
     console.log(startData)

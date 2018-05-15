@@ -220,7 +220,6 @@ export abstract class Task extends stream.Readable {
 		logger.log('DEBUG', 'numOfRun = ' + numOfRun);
 
 		for (let j = 0; j < numOfRun; j ++) { // no more than the length of the smallest jsonContent
-			logger.log('INFO', '***** synchronous process');
 			logger.log('DEBUG', 'j = ' + j);
 
 			var inputArray = slotArray.map((slt) => slt.jsonContent[j] );
@@ -234,10 +233,10 @@ export abstract class Task extends stream.Readable {
 			.on('treated', results => {
 				// remove the first element in the jsonContent of every slots :
 				self.applyOnArray(self.shift_jsonContent, slotArray);
-				emitter.emit('processed');
+				emitter.emit('processed', results);
 			})
 			.on('error', (err) => {
-				emitter.emit('error');
+				emitter.emit('error', err);
 			})
 			.on('stderrContent', buf => {
 				emitter.emit('stderrContent', buf);
@@ -367,7 +366,7 @@ export abstract class Task extends stream.Readable {
 	*/
 	private createSlot (symbol: string): stream.Writable {
 		if (typeof symbol !== 'string') throw 'ERROR : @symbol must be a string';
-		var self = this;
+		var thisTask = this; // keep the reference to this task
 
 		class slot extends stream.Writable { // a slot is a Duplex
 			symbol: string; // key of the input = id of the input
@@ -379,18 +378,18 @@ export abstract class Task extends stream.Readable {
 		    	this.symbol = symbol;
 		    }
 		    _write (chunk: any, encoding?: string, callback?: any): void {
-		    	self.process(chunk, this)
-		    	.on('processed', s => {
-					self.emit('processed', s);
+		    	thisTask.process(chunk, this)
+		    	.on('processed', res => {
+					thisTask.emit('processed', res);
 				})
-				.on('error', s => {
-					self.emit('err', s);
+				.on('error', err => {
+					thisTask.emit('err', err);
 				})
 				.on('stderrContent', buf => {
-					self.emit('stderrContent', buf);
+					thisTask.emit('stderrContent', buf);
 				})
 				.on('lostJob', (msg, jid) => {
-	        		self.emit('lostJob', msg, jid);
+	        		thisTask.emit('lostJob', msg, jid);
 	    		});
 		    	callback();
 		    }

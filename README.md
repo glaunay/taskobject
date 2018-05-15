@@ -111,11 +111,11 @@ This script needs some command line options. You can use option `-h` to display 
 ## Task developer
 
 Each task class must be developp as a unique NPM package. The name of your class must be exactly the same as the name of your NPM package.  
-A Task object must be used for only one job. Create a new instance of a a Task by job to run.  
+A Task object must be used for only one job. Create a new instance of a Task by job to run.  
 In our team we use TypeScript to develop but here the examples are in JavaScript. All the examples in this part are related.
 
 ### Directory tree
-Your directories must be organized like the fllowing direcotry tree :
+Your directories must be organized like the following directory tree :
 
 ```sh
 .
@@ -171,7 +171,13 @@ echo $(pwd) # the path of the current directory
 echo "\" }"
 ```
 
-### Inheritence
+
+### Task class
+
+In the current directory (see the [Directory tree](#directory-tree) section), yous have to create a JavaScript file named index.js, where you will create your task class.
+
+#### Inheritence
+
 Your class must inherit from the taskobject :
 ```javascript
 var tk = require('taskobject');
@@ -187,7 +193,7 @@ class my_custom_task extends tk.Task {
 ```
 
 
-### The constructor
+#### The constructor
 1. call the parent class constructor,
 2. take the current directory of your Task class,
 3. construct the path to the bash script of your Task with `this.rootdir`,
@@ -207,7 +213,7 @@ constructor(management, options) {
 
 >**Note** : `management` (see the [Management Literal](#management-literal) part) and `options` (see the [Options Literal](#options-literal) part) are literals.
 
-### The methods to implement
+#### The methods to implement
 You have to override two methods :
 
 ```javascript
@@ -225,8 +231,11 @@ prepareResults (chunkJson) {
 
 These examples can be simply copied-pasted as it for your usage.
 
+### Test your task
 
-### Management Literal
+In a directory named `./test/` (see the [Directory tree](#directory-tree) section), you have to create a JavaScript file to test your task.
+
+#### Management Literal
 The `management` literal can contain 2 keys :
 - `jobManager` (object) : an instance of a JM (see the [Job Manager](#job-manager) section) [mandatory].
 - `jobProfile` (string) : the profile to run the job [optional]. This profile will be passed to the JM and will define the running settings for the job (nodes, queues, users, groups, etc.).   
@@ -240,7 +249,7 @@ let myManagement = {
 ```
 
 
-### Options Literal
+#### Options Literal
 The `options` literal can contain 3 keys :
 - `logLevel` (`string`) : specify a verbose level [optional]. Choose between `debug`, `info`, `success`, `warning`, `error` and `critical`.
 - `modules` (`[string]`) : an array of modules to load before the run of the core script [optional].
@@ -260,9 +269,8 @@ let myOptions = {
 ## More
 
 ### Job Manager
-
-Coming soon...  
-A Job Manager (JM) is necessary to run a Task. In our case, we use the nslurm package ([GitHub repo][1], [NPM package][2]), adapted for SLURM.
+ 
+A Job Manager (JM) is a MicroService necessary to run a Task. In our case, we use the ms-jobmanager package ([GitHub repo][1]), adapted for SLURM, SGE and your proper machine.
 
 ### Simpletask
 
@@ -283,5 +291,4 @@ The dualtask has been implemented only to test the task with two slots (`input1`
 4. the dualtask pushes this new JSON on the Readable interface of the dualtask. Then we can use a pipe on it, like `dualtask.pipe(z.slot)`.
 
 
-[1]: https://github.com/glaunay/nslurm
-[2]: https://www.npmjs.com/package/nslurm
+[1]: https://github.com/melaniegarnier/ms-jobmanager
