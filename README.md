@@ -283,7 +283,7 @@ let aTaskInstance = new customTask.my_custom_task(myManagement, myOptions);
 
 #### Management Literal
 The `management` literal can contain 2 keys :
-- `jobManager` (module) : an instance of a JM (see the [Job Manager](#job-manager) section) [mandatory].
+- `jobManager` (required module = `"ms-jobmanager/build/nativeJS/job-manager-client"`) : an instance of a JM client (see the [Job Manager](#job-manager) section) [mandatory].
 - `jobProfile` (string) : the profile to run the job [optional]. This profile will be passed to the JM and will define the running settings for the job (nodes, queues, users, groups, etc.).   
 
 Example :
