@@ -26,8 +26,8 @@ Here `task_c` contains two Slots : `slot_1` and `slot_2`. The `slot_1` takes dat
 >Note that even if the `task_d` has only one input, it is pushed on a Slot and not on the Task itself (same for `task_e`).
 
 ### Remarks about Tasks
-- for the constistence of the pipeline, data exchanged between Tasks and Slots are in JSON format.
-- a Task is dependant to a JM to run the calculations.
+- for the constistency of the pipeline, data exchanged between Tasks and Slots are in JSON format.
+- a Task depends on a JM to run the calculations.
 - a Task always provide a bash script (named CoreScript) that will be passed to the JM (with the inputs and the settings) to run the job. It is the core of the job.  
 
 
@@ -45,7 +45,7 @@ npm install taskobject
 This module can be used only with the test modes. In fact, the taskobject is an abstract class created as a base to implement bioinformatic tasks, using inheritance.  
 Two test modes are available. Each one is based on a child class of the taskobject :
 - the simple test : uses the simpletask (more info in the [SimpleTask](#simpletask) section)
-- the dual test : uses the dualtask (more info in the [DualTask](#dualtask) section)
+- the dual test : uses the dualtask (more info in the [DualTask](#dualtask) section)   
 You can either make a test in your proper JS file or use one of the test files we provide.
 
 
@@ -110,30 +110,42 @@ This script needs some command line options. You can use option `-h` to display 
 
 ## Task developer
 
-Each task class must be developp as a unique NPM package. The name of your class must be exactly the same as the name of your NPM package.  
-A Task object must be used for only one job. Create a new instance of a Task by job to run.  
-In our team we use TypeScript to develop but here the examples are in JavaScript. All the examples in this part are related.
+To read before beginning :
+- The development of a Task should be done in TypeScript. Here the examples are in TS, and are all related to each other.
+- Each task class must be developp as a unique NPM package.
+- The name of your class must be **exactly** the same as the name of your NPM package. You cannot choose a name with special characters or capital letters.  
+- A Task object must be used for only one job. Each Task instance is meant to run once and can't be reused.  
+
+### Project initialization
+
+In your project directory :
+
+```sh
+tsc --init # initialize a TS project (tsconfig.json)
+npm init # say yes to all
+npm install --save taskobject # we need the taskobject package
+npm install --save-dev @types/node # in TS you need node types
+```
 
 ### Directory tree
 Your directories must be organized like the following directory tree :
 
 ```sh
 .
-├── LICENSE
-├── README.md
 ├── data
 │   └── myCoreScript.sh
 ├── index.js
+├── node_modules
+│   ├── @types
+│   │   └── node
+│   └── taskobject
 ├── package.json
 ├── test
-│   ├── index.js
-│   ├── test.js
-│   └── test.txt
+│   └── test.js
 ├── ts
 │   └── src
 │       ├── index.ts
 │       ├── test
-│       │   ├── index.ts
 │       │   └── test.ts
 │       └── types
 │           └── index.ts
@@ -142,9 +154,36 @@ Your directories must be organized like the following directory tree :
     └── index.js
 ```
 
-> **Note** : the example here contains TypeScript files too (with the `./ts/src/`, `./types/` directories and the `tsconfig.json` file).
+### The tsconfig
 
-### The CoreScript
+```
+{
+    "compilerOptions": {
+        "allowJs" : true,
+        "baseUrl": ".",
+        "lib": [ "dom", "es7" ],
+        "listEmittedFiles" : true,
+        "listFiles" : false,
+        "maxNodeModuleJsDepth" : 10,
+        "module": "commonjs",
+        "moduleResolution" : "node",
+        "outDir" : "./",
+        "paths": {
+            "*": [ "node_modules/" ]
+        },
+        "preserveConstEnums" : true,
+        "removeComments" : false,
+        "target": "ES6"
+    },
+    "files": [ // path to the files to compile
+        "./ts/src/index.ts",
+        "./ts/src/test/test.ts"
+	]
+}
+
+```
+
+### The core script
 Every Task must have a bash script which runs the calculations. We named it the core script.  
 
 In your core script, you can access to :
@@ -152,7 +191,7 @@ In your core script, you can access to :
 2. the modules you gave to the `options` literal (see [Options Literal](#options-literal) part),
 3. the variables you gave to the `options` literal (see [Options Literal](#options-literal) part).
 
-**Warning** : the core script you create must make `echo` only to contruct a JSON containing the results. Otherwise, your Task will crash.  
+**Warning** : the standard output of the core script must be **only** JSON containing the results. Otherwise, your Task will crash.  
 
 Example :
 ```sh
@@ -171,21 +210,22 @@ echo $(pwd) # the path of the current directory
 echo "\" }"
 ```
 
+> **Remark** : the key used in the stdout JSON is important during the implementation of the method `"prepareResults"` (see the [The methods to implement](#the-methods-to-implement) section).
 
-### Task class
+### The task class
 
 In the current directory (see the [Directory tree](#directory-tree) section), yous have to create a JavaScript file named index.js, where you will create your task class.
 
+>**Remark** : do not forget to export your class !
+
 #### Inheritence
 
-Your class must inherit from the taskobject :
-```javascript
-var tk = require('taskobject');
-class my_custom_task extends tk.Task {}
-```
+Your class must inherit from the taskobject (in TS you have to declare all the slots before writing the constructor) :
 
-> **Note** : in TypeScript you have to declare all the slots before writing the constructor :
 ```typescript
+import tk = require('taskobject');
+declare var __dirname; // mandatory
+
 class my_custom_task extends tk.Task {
 	public readonly myInputA;
 	public readonly myInputB;
@@ -201,7 +241,7 @@ class my_custom_task extends tk.Task {
 5. initialize the Slots.   
 
 Example :
-```javascript
+```typescript
 constructor(management, options) {
 	super(management, options); // (1)
 	this.rootdir = __dirname; // (2)
@@ -216,7 +256,7 @@ constructor(management, options) {
 #### The methods to implement
 You have to override two methods :
 
-```javascript
+```typescript
 prepareJob (inputs) {
 	return super.configJob(inputs);
 }
@@ -229,19 +269,25 @@ prepareResults (chunkJson) {
 }
 ```
 
-These examples can be simply copied-pasted as it for your usage.
+These examples can be simply copied-pasted as it for your usage **but** you have to change the `"pathOfCurrentDir"`. You must replace it by the key used in the stdout JSON of your core script (see the example in [The core script](#the-core-script) part).
 
 ### Test your task
 
-In a directory named `./test/` (see the [Directory tree](#directory-tree) section), you have to create a JavaScript file to test your task.
+In a directory named `./test/` (see the [Directory tree](#directory-tree) section), you have to create a JavaScript file to test your task :
+
+```typescript
+import customTask = require('../index')
+
+let aTaskInstance = new customTask.my_custom_task(myManagement, myOptions);
+```
 
 #### Management Literal
 The `management` literal can contain 2 keys :
-- `jobManager` (object) : an instance of a JM (see the [Job Manager](#job-manager) section) [mandatory].
+- `jobManager` (module) : an instance of a JM (see the [Job Manager](#job-manager) section) [mandatory].
 - `jobProfile` (string) : the profile to run the job [optional]. This profile will be passed to the JM and will define the running settings for the job (nodes, queues, users, groups, etc.).   
 
 Example :
-```javascript
+```typescript
 let myManagement = {
 	'jobManager' : JMobject,
 	'jobProfile' : 'default'
@@ -256,7 +302,7 @@ The `options` literal can contain 3 keys :
 - `exportVar` (`literal`) : a dictionary of the variable to export before the run of the core script [optional]. Each key is the name of the variable and each value is its content.  
 
 Example :
-```javascript
+```typescript
 let myOptions = {
 	'logLevel': 'debug',
     'modules' : ['myModule1', 'myModule2'],
@@ -265,6 +311,37 @@ let myOptions = {
 };
 ``` 
 
+#### Push an input
+
+Still in your test file, create a Readable Stream with your input (in JSON format), an pipe it on the task instance :
+
+```typescript
+let aFirstInput = 'hello world';
+let rs = new stream.Readable();
+rs.push('{ "' + myInputA + '" : "' + aFirstInput + '" }'); // JSON format
+rs.push(null);
+
+rs.pipe(aTaskInstance.myInputA);
+```
+
+**Warning** : the key in the JSON **must** be the name of the Slot you push your data on.
+
+#### Task events
+
+Your task can emit events since it is a Readable Stream. When you listen these following events, the callback give you some arguments :
+- `processed` : when the task is successfully finished ; [arguments] : the results in JSON format.
+- `err` : when an error occured with the task or the JM ; [arguments] : the error.
+- `stderrContent` : when an error occured with the coreScript ; [arguments] : the error.
+- `lostJob` : when the JM has lost the job ; [arguments] : the message and the job id.   
+
+As example :
+
+```typescript
+aTaskInstance.on('processed', res => {
+	console.log("I have my results :");
+	console.log(res);
+})
+```
 
 ## More
 

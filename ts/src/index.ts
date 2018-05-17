@@ -310,15 +310,6 @@ export abstract class Task extends stream.Readable {
             	self.async(function () {
             		var res = self.prepareResults(self.parseJson(chunk));
             		if (typeof jobOpt.namespace !== 'undefined') res['uuid'] = jobOpt.namespace;
-/* CONFLICTS to pass to version 2.0.0
-<<<<<<< HEAD
-            		var res = self.prepareResults(chunk);
-            		if (typeof jobOpt.namespace !== 'undefined') res['uuid'] = jobOpt.namespace;
-=======
-            		var res = self.prepareResults(self.parseJson(chunk));
-            		if (job_uuid !== null) res['uuid'] = job_uuid;
->>>>>>> e932561c3d62115c7c4861152e3ae5b3d6da5922
-*/
             		return res;
             	}).on('end', results => { // (4)
             		self.goReading = true;
@@ -508,7 +499,7 @@ export abstract class Task extends stream.Readable {
 		let ws = fs.createWriteStream(dest);
 		rs.pipe(ws);
 		rs.on("error", (err) => { logger.log('ERROR', 'in copyFile while reading the file ' + src + ' :\n' + err); });
-		ws.on("error", function(err) { logger.log('ERROR', 'in copyFile while writing the file ' + dest + ' :\n' + err);});
+		ws.on("error", (err) => { logger.log('ERROR', 'in copyFile while writing the file ' + dest + ' :\n' + err);});
 	}
 
 	/*
