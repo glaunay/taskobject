@@ -104,7 +104,7 @@ class Task extends stream.Readable {
     * Parse @stringT [string] to find all JSON objects into.
     * Method : look at every character in the string to find the start & the end of JSONs,
     * and then substring according to start & end indices. The substrings are finally converted into JSONs.
-    * Returns in @results [literal] a list of JSON objects [@results.jsonTab] and @stringT without all JSON substrings [@results.rest].
+    * Returns a list of JSON objects @jsonTab.
     * for tests = zede}trgt{"toto" : { "yoyo" : 3}, "input" : "tototo\ntititi\ntatata"} rfr{}ojfr
     */
     findJson(stringT) {
@@ -115,10 +115,7 @@ class Task extends stream.Readable {
         var jsonStart = -1, jsonEnd = -1;
         var counter = 0;
         var sub_toParse;
-        var result = {
-            "rest": "",
-            "jsonTab": []
-        };
+        var jsonTab = [];
         /*
         * Check the existence of JSON extremities in @toParse [string].
         * Method :
@@ -153,17 +150,15 @@ class Task extends stream.Readable {
                         var myJson = this.parseJson(sub_toParse);
                         if (myJson === null)
                             throw "WARNING : make sure your data contains well writing \"\\n\" !";
-                        result.jsonTab.push(myJson);
-                        toParse = toParse.replace(sub_toParse, ''); // remove the part of the JSON already parsed
-                        break;
+                        jsonTab.push(myJson);
+                        return jsonTab;
                     }
                 }
             }
             if (jsonEnd === -1)
                 toParse = toParse.substring(jsonStart + 1); // continue the research without all before the first {
         }
-        result.rest += toParse;
-        return result;
+        return jsonTab;
     }
     /*
     * DO NOT MODIFY
@@ -177,7 +172,7 @@ class Task extends stream.Readable {
     /*
     * DO NOT MODIFY
     * Process method.
-    * Use @chunk from @aSlot to search for one JSON (at least), and then call the run method.
+    * Use @chunk from @aSlot to search for one JSON, and then call the run method.
     */
     process(chunk, aSlot) {
         if (!typ.isSlot(aSlot))
@@ -186,34 +181,33 @@ class Task extends stream.Readable {
         var self = this; // self = this = TaskObject =//= aSlot = a slot of self
         var slotArray = this.getSlots();
         self.feed_streamContent(chunk, aSlot);
-        var numOfRun = -1; // the length of the smallest jsonContent among all the slots's jsonContents
+        let run = false;
         for (let slt of slotArray) {
             logger_1.logger.log('DEBUG', 'slotArray[i] : \n' + util.format(slt));
             self.feed_jsonContent(slt);
-            // take the length of the smallest jsonContent :
-            if (numOfRun === -1)
-                numOfRun = slt.jsonContent.length;
-            if (slt.jsonContent.length < numOfRun)
-                numOfRun = slt.jsonContent.length;
+            // if no JSON has been detected at all :
+            if (slt.jsonContent.length < 1)
+                run = false;
+            else {
+                run = true;
+                if (slt.jsonContent.length > 1)
+                    logger_1.logger.log('WARNING', 'more than one JSON detected in the slot ' + slt.symbol + ' : taking the first JSON only !');
+            }
         }
-        logger_1.logger.log('DEBUG', 'numOfRun = ' + numOfRun);
-        for (let j = 0; j < numOfRun; j++) {
-            logger_1.logger.log('DEBUG', 'j = ' + j);
-            var inputArray = slotArray.map((slt) => slt.jsonContent[j]);
-            // for tests
-            //inputArray = [ { "input": '{\n"myData line 1" : "titi"\n}\n' }, { "input2": '{\n"myData line 1" : "tata"\n}\n' } ]
-            // end of tests
+        if (run) {
+            // inputArray is an array. Each element is the first JSON detected in the jsonContent of each slot
+            var inputArray = slotArray.map((slt) => slt.jsonContent[0]);
             logger_1.logger.log('DEBUG', 'inputArray = \n' + util.format(inputArray));
             self.run(inputArray)
-                .on('treated', results => {
-                // remove the first element in the jsonContent of every slots :
-                self.applyOnArray(self.shift_jsonContent, slotArray);
+                .on('treated', (results) => {
+                // remove the jsonContents of every slots :
+                self.applyOnArray(self.remove_jsonContents, slotArray);
                 emitter.emit('processed', results);
             })
                 .on('error', (err) => {
                 emitter.emit('error', err);
             })
-                .on('stderrContent', buf => {
+                .on('stderrContent', (buf) => {
                 emitter.emit('stderrContent', buf);
             })
                 .on('lostJob', (msg, jid) => {
@@ -243,12 +237,15 @@ class Task extends stream.Readable {
     feed_jsonContent(aSlot) {
         if (!typ.isSlot(aSlot))
             throw 'ERROR : @aSlot is not a slot';
-        var results = this.findJson(aSlot.streamContent); // search for JSON
-        logger_1.logger.log('DEBUG', 'results = \n' + util.format(results));
-        if (results.jsonTab.length < 1)
+        // if jsonContent has already JSONs (at least one) : no need to find others
+        if (aSlot.jsonContent.length >= 1)
+            return;
+        var jsonTab = this.findJson(aSlot.streamContent); // search for JSON
+        logger_1.logger.log('DEBUG', 'jsonTab = \n' + util.format(jsonTab));
+        if (jsonTab.length < 1)
             return; // if there is no JSON at all, bye bye
-        aSlot.jsonContent = aSlot.jsonContent.concat(results.jsonTab); // take all the JSON detected ...
-        aSlot.streamContent = results.rest; // ... and keep the rest into streamContent
+        aSlot.jsonContent = aSlot.jsonContent.concat(jsonTab); // take all the JSONs detected
+        aSlot.streamContent = '';
         logger_1.logger.log('DEBUG', 'jsonContent of ' + aSlot.symbol + ' = \n' + util.format(aSlot.jsonContent));
     }
     /*
@@ -256,7 +253,8 @@ class Task extends stream.Readable {
     * (1) prepare the job = by setting options & creating files for the task
     * (2) run
     * (3) receive all the data
-    * (4) at the end of the reception, prepare the results & send
+    * (4) at the end of the reception, prepare the results
+    * (5) only when (4) is finished : push the results to the subtasks
     */
     run(jsonValue) {
         var emitter = new events.EventEmitter();
@@ -270,20 +268,20 @@ class Task extends stream.Readable {
         var j = self.jobManager.push(jobOpt); // (2)
         j.on('completed', (stdout, stderr, jobObject) => {
             if (stderr) {
-                stderr.on('data', buf => {
+                stderr.on('data', (buf) => {
                     logger_1.logger.log('ERROR', 'stderr content = \n' + buf.toString());
                     emitter.emit('stderrContent', buf);
                 });
             }
             var chunk = '';
-            stdout.on('data', buf => { chunk += buf.toString(); }); // (3)
+            stdout.on('data', (buf) => { chunk += buf.toString(); }); // (3)
             stdout.on('end', () => {
                 self.async(function () {
                     var res = self.prepareResults(self.parseJson(chunk));
                     if (typeof jobOpt.namespace !== 'undefined')
                         res['uuid'] = jobOpt.namespace;
                     return res;
-                }).on('end', results => {
+                }).on('end', (results) => {
                     self.goReading = true;
                     self.push(JSON.stringify(results)); // pushing string = activate the "_read" method
                     emitter.emit('treated', results);
@@ -339,13 +337,13 @@ class Task extends stream.Readable {
             }
             _write(chunk, encoding, callback) {
                 thisTask.process(chunk, this)
-                    .on('processed', res => {
+                    .on('processed', (res) => {
                     thisTask.emit('processed', res);
                 })
-                    .on('error', err => {
+                    .on('error', (err) => {
                     thisTask.emit('err', err);
                 })
-                    .on('stderrContent', buf => {
+                    .on('stderrContent', (buf) => {
                     thisTask.emit('stderrContent', buf);
                 })
                     .on('lostJob', (msg, jid) => {
@@ -405,6 +403,15 @@ class Task extends stream.Readable {
         if (!typ.isSlot(aSlot))
             throw 'ERROR : @aSlot is not a slot';
         aSlot.jsonContent.shift();
+    }
+    /*
+    * DO NOT MODIFY
+    * Remove all the JSON in jsonContent of the @aSlot.
+    */
+    remove_jsonContents(aSlot) {
+        if (!typ.isSlot(aSlot))
+            throw 'ERROR : @aSlot is not a slot';
+        aSlot.jsonContent = [];
     }
     /*
     * DO NOT MODIFY

@@ -23,7 +23,9 @@ task_c.pipe(task_d.slot_1) // c -> d.1
 task_d.pipe(task_e.slot_1) // d -> e.1
 ```
 Here `task_c` contains two Slots : `slot_1` and `slot_2`. The `slot_1` takes data from `task_a`, and the `slot_2` takes data from `task_b`. Then, `task_c` push its results into the `slot_1` of `task_d`. Finally, results of `task_d` are pushed into the `slot_1` of `task_e`.
->Note that even if the `task_d` has only one input, it is pushed on a Slot and not on the Task itself (same for `task_e`).
+>Note that even if the `task_d` has only one input, it is pushed on a Slot and not on the Task itself (same for `task_e`).   
+
+>If you want to learn more about pipelines, see our pipelineobject project ([GitHub repo][2], [NPM package][3]).
 
 ### Remarks about Tasks
 - for the constistency of the pipeline, data exchanged between Tasks and Slots are in JSON format.
@@ -329,10 +331,10 @@ rs.pipe(aTaskInstance.myInputA);
 #### Task events
 
 Your task can emit events since it is a Readable Stream. When you listen these following events, the callback give you some arguments :
-- `processed` : when the task is successfully finished ; [arguments] : the results in JSON format.
-- `err` : when an error occured with the task or the JM ; [arguments] : the error.
-- `stderrContent` : when an error occured with the coreScript ; [arguments] : the error.
-- `lostJob` : when the JM has lost the job ; [arguments] : the message and the job id.   
+- `"processed"` : when the task is successfully finished ; [arguments] : the results in JSON format.
+- `"err"` : when an error occured with the task or the JM ; [arguments] : the error.
+- `"stderrContent"` : when an error occured with the coreScript ; [arguments] : the error.
+- `"lostJob"` : when the JM has lost the job ; [arguments] : the message and the job id.   
 
 As example :
 
@@ -369,3 +371,5 @@ The dualtask has been implemented only to test the task with two slots (`input1`
 
 
 [1]: https://github.com/melaniegarnier/ms-jobmanager
+[2]: https://github.com/melaniegarnier/pipelineobject
+[3]: https://www.npmjs.com/package/pipelineobject
