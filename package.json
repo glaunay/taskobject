@@ -8,8 +8,8 @@
     "JSON": "^1.0.0",
     "commander": "^2.15.0",
     "jsonfile": "^3.0.0",
+    "ms-jobmanager": "^1.0.1",
     "my-local-ip": "^1.0.0",
-    "nslurm": "^1.1.1",
     "uuid": "^3.1.0",
     "winston": "^2.4.0"
   },
