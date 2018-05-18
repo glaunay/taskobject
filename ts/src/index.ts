@@ -202,7 +202,7 @@ export abstract class Task extends stream.Readable {
 		var slotArray: typ.slot[] = this.getSlots();
 		self.feed_streamContent(chunk, aSlot);
 
-		let run: boolean = false;
+		let run: boolean = undefined;
 
 		for (let slt of slotArray) { // for each slot
 			logger.log('DEBUG', 'slotArray[i] : \n' + util.format(slt));
@@ -211,7 +211,7 @@ export abstract class Task extends stream.Readable {
 			// if no JSON has been detected at all :
 			if (slt.jsonContent.length < 1) run = false;
 			else { // if there are one or more than one JSON in the slt.jsonContent :
-				run = true;
+				if (typeof run === 'undefined') run = true; // if run is still undefined
 				if (slt.jsonContent.length > 1) logger.log('WARNING', 'more than one JSON detected in the slot ' + slt.symbol + ' : taking the first JSON only !');
 			}
 		}

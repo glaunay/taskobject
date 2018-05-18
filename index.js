@@ -181,7 +181,7 @@ class Task extends stream.Readable {
         var self = this; // self = this = TaskObject =//= aSlot = a slot of self
         var slotArray = this.getSlots();
         self.feed_streamContent(chunk, aSlot);
-        let run = false;
+        let run = undefined;
         for (let slt of slotArray) {
             logger_1.logger.log('DEBUG', 'slotArray[i] : \n' + util.format(slt));
             self.feed_jsonContent(slt);
@@ -189,7 +189,8 @@ class Task extends stream.Readable {
             if (slt.jsonContent.length < 1)
                 run = false;
             else {
-                run = true;
+                if (typeof run === 'undefined')
+                    run = true; // if run is still undefined
                 if (slt.jsonContent.length > 1)
                     logger_1.logger.log('WARNING', 'more than one JSON detected in the slot ' + slt.symbol + ' : taking the first JSON only !');
             }
