@@ -65,7 +65,18 @@ class Task extends stream.Readable {
             if (options.hasOwnProperty('exportVar')) {
                 this.exportVar = options.exportVar;
             }
+            if (options.hasOwnProperty('jobProfile')) {
+                this.jobProfile = options.jobProfile;
+            }
         }
+    }
+    // Require to clone w/ functional Shell
+    getOptions() {
+        return {
+            "modules": this.modules ? this.modules : undefined,
+            "exportVar": this.exportVar ? this.exportVar : undefined,
+            "jobProfile": this.jobProfile ? this.jobProfile : undefined
+        };
     }
     /*
     * DO NOT MODIFY

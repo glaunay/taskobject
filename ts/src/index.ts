@@ -45,7 +45,7 @@ export abstract class Task extends stream.Readable {
 	protected readonly exportVar: typ.stringMap = {}; // variables to export, needed in the coreScript of the Task
 	protected readonly staticTag: string = this.constructor.name; // tagTask : the name of the class
 	protected outKey: string = 'out'; // key used for the outgoing JSON (with the results)
-
+	private logLevel:string;
 	/*
 	* MUST BE ADAPTED FOR CHILD CLASSES
 	* Initialize the task parameters with values gived by user.
@@ -68,14 +68,27 @@ export abstract class Task extends stream.Readable {
 				let upperLevel = options.logLevel.toUpperCase();
 				if (loggerLevels.hasOwnProperty(upperLevel)) logger.level = upperLevel;
 				else logger.log('WARNING', 'the ' + upperLevel + ' level of log does not exist -> taking the default level : ' + logger.level);
+				this.logLevel = upperLevel;
             }
             if (options.hasOwnProperty('modules')) {
             	this.modules = options.modules;
             }
             if (options.hasOwnProperty('exportVar')) {
             	this.exportVar = options.exportVar;
+			}
+			if (options.hasOwnProperty('jobProfile')) {
+            	this.jobProfile = options.jobProfile;
             }
         }
+	}
+    // Require to clone w/ functional Shell
+	public getOptions(){
+		return {
+			"modules" : this.modules ? this.modules : undefined,
+			"exportVar" : this.exportVar ? this.exportVar : undefined,
+			"jobProfile" : this.jobProfile ? this.jobProfile : undefined,
+			"logLevel" : this.logLevel ? this.logLevel : undefined
+		}
 	}
 
 	/*
