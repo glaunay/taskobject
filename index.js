@@ -58,6 +58,7 @@ class Task extends stream.Readable {
                     logger_1.logger.level = upperLevel;
                 else
                     logger_1.logger.log('WARNING', 'the ' + upperLevel + ' level of log does not exist -> taking the default level : ' + logger_1.logger.level);
+                this.logLevel = upperLevel;
             }
             if (options.hasOwnProperty('modules')) {
                 this.modules = options.modules;
@@ -75,7 +76,8 @@ class Task extends stream.Readable {
         return {
             "modules": this.modules ? this.modules : undefined,
             "exportVar": this.exportVar ? this.exportVar : undefined,
-            "jobProfile": this.jobProfile ? this.jobProfile : undefined
+            "jobProfile": this.jobProfile ? this.jobProfile : undefined,
+            "logLevel": this.logLevel ? this.logLevel : undefined
         };
     }
     /*
