@@ -49,7 +49,7 @@ class Task extends stream.Readable {
             this.jobProfile = management.jobProfile;
         }
         else {
-            logger.warn('INFO', 'no jobProfile specified -> take default jobProfile for the ' + this.staticTag + ' task.');
+            logger.warn(`no jobProfile specified -> take default jobProfile for the ${this.staticTag} task`);
         }
         // options
         if (typeof options !== 'undefined') {

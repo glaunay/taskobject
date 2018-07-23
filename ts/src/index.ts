@@ -60,7 +60,7 @@ export abstract class Task extends stream.Readable {
 		if (management.hasOwnProperty('jobProfile')) {
 			this.jobProfile = management.jobProfile;
 		} else {
-			logger.warn('INFO', 'no jobProfile specified -> take default jobProfile for the ' + this.staticTag + ' task.');
+			logger.warn(`no jobProfile specified -> take default jobProfile for the ${this.staticTag} task`);
 		}
 
 		// options
