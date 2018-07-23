@@ -13,7 +13,7 @@ import util = require('util')
 
 
 import du = require('./dualtask');
-import {logger} from '../lib/logger';
+import logger = require('winston');
 import sim = require('./simpletask');
 import typ = require('../types/index');
 
@@ -28,9 +28,8 @@ export var simpleTest = function (inputFile: string, management: typ.management)
 
     var a = new sim.simpletask(management);
     
-    logger.log('DEBUG', a.input);
-    logger.log('DEBUG', util.format(a));
-
+    logger.debug(`a.input:${util.format(a)}`);
+    
     ///////////// pipeline /////////////
 
     //process.stdin.pipe(a.input); // {"input" : "toto"} for example
@@ -39,13 +38,13 @@ export var simpleTest = function (inputFile: string, management: typ.management)
 
     fileToStream(inputFile, "input").pipe(a.input)
     a.on('processed', results => {
-        logger.log('DEBUG', '**** data');
+        logger.debug('**** data');
     })
     .on('err', (err, jobID) => {
-        logger.log('ERROR', '**** ERROR');
+        logger.error('**** ERROR');
     })
     .on('stderrContent', buf => {
-        logger.log('ERROR', '**** STDERR');
+        logger.error('**** STDERR');
     });
 
     a.pipe(process.stdout);
@@ -64,7 +63,7 @@ export var dualTest = function (inputFile1: string, inputFile2: string, manageme
     //var uuid: string = "00000000-1111-2222-3333-444444444444"; // defined arbitrary but for tests
 
     var a = new du.dualtask(management, {'logLevel': 'info'});
-    logger.log('DEBUG', util.format(a));
+    logger.debug(util.format(a));
     
     ///////////// pipeline /////////////
 
@@ -76,13 +75,13 @@ export var dualTest = function (inputFile1: string, inputFile2: string, manageme
     fileToStream(inputFile2, "input2").pipe(a.input2) // stream input 2
     
     a.on('processed', results => {
-        logger.log('DEBUG', '**** data');
+        logger.debug('**** data');
     })
     .on('err', (err, jobID) => {
-        logger.log('ERROR', '**** ERROR');
+        logger.debug('**** ERROR');
     })
     .on('stderrContent', buf => {
-        logger.log('ERROR', '**** STDERR');
+        logger.debug('**** STDERR');
     });
 
     a.pipe(process.stdout);
@@ -100,7 +99,7 @@ export function JMsetup (): events.EventEmitter {
         port : '2326'
     }
     startData['TCPip'] = 'localhost';
-    console.log(startData)
+    logger.info(util.format(startData));
 
     ms_jobManager.start(startData).on('ready', () => {
         emitter.emit('ready', ms_jobManager);

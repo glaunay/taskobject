@@ -17,10 +17,11 @@ const JSON = require("JSON");
 const jsonfile = require("jsonfile");
 const stream = require("stream");
 const util = require("util");
-const logger_1 = require("./lib/logger");
-const logger_2 = require("./lib/logger");
+const logger = require("winston");
+//import { loggerLevels } from './lib/logger';
 const typ = require("./types/index");
 class Task extends stream.Readable {
+    //	private logLevel:string;
     /*
     * MUST BE ADAPTED FOR CHILD CLASSES
     * Initialize the task parameters with values gived by user.
@@ -48,17 +49,17 @@ class Task extends stream.Readable {
             this.jobProfile = management.jobProfile;
         }
         else {
-            logger_1.logger.log('INFO', 'no jobProfile specified -> take default jobProfile for the ' + this.staticTag + ' task.');
+            logger.warn('INFO', 'no jobProfile specified -> take default jobProfile for the ' + this.staticTag + ' task.');
         }
         // options
         if (typeof options !== 'undefined') {
             if (options.hasOwnProperty('logLevel')) {
-                let upperLevel = options.logLevel.toUpperCase();
-                if (logger_2.loggerLevels.hasOwnProperty(upperLevel))
-                    logger_1.logger.level = upperLevel;
-                else
-                    logger_1.logger.log('WARNING', 'the ' + upperLevel + ' level of log does not exist -> taking the default level : ' + logger_1.logger.level);
-                this.logLevel = upperLevel;
+                /*
+                    let upperLevel = options.logLevel.toUpperCase();
+                    if (loggerLevels.hasOwnProperty(upperLevel)) logger.level = upperLevel;
+                    else logger.log('WARNING', 'the ' + upperLevel + ' level of log does not exist -> taking the default level : ' + logger.level);
+                    this.logLevel = upperLevel;
+                */
             }
             if (options.hasOwnProperty('modules')) {
                 this.modules = options.modules;
@@ -77,7 +78,6 @@ class Task extends stream.Readable {
             "modules": this.modules ? this.modules : undefined,
             "exportVar": this.exportVar ? this.exportVar : undefined,
             "jobProfile": this.jobProfile ? this.jobProfile : undefined,
-            "logLevel": this.logLevel ? this.logLevel : undefined
         };
     }
     /*
@@ -196,7 +196,7 @@ class Task extends stream.Readable {
         self.feed_streamContent(chunk, aSlot);
         let run = undefined;
         for (let slt of slotArray) {
-            logger_1.logger.log('DEBUG', 'slotArray[i] : \n' + util.format(slt));
+            logger.debug(`slotArray[i] :\n${util.format(slt)}`);
             self.feed_jsonContent(slt);
             // if no JSON has been detected at all :
             if (slt.jsonContent.length < 1)
@@ -205,13 +205,13 @@ class Task extends stream.Readable {
                 if (typeof run === 'undefined')
                     run = true; // if run is still undefined
                 if (slt.jsonContent.length > 1)
-                    logger_1.logger.log('WARNING', 'more than one JSON detected in the slot ' + slt.symbol + ' : taking the first JSON only !');
+                    logger.warn(`More than one JSON detected in slot ${slt.symbol} : taking the first JSON only !`);
             }
         }
         if (run) {
             // inputArray is an array. Each element is the first JSON detected in the jsonContent of each slot
             var inputArray = slotArray.map((slt) => slt.jsonContent[0]);
-            logger_1.logger.log('DEBUG', 'inputArray = \n' + util.format(inputArray));
+            logger.debug(`inputArray = \n ${util.format(inputArray)}`);
             self.run(inputArray)
                 .on('treated', (results) => {
                 // remove the jsonContents of every slots :
@@ -242,7 +242,7 @@ class Task extends stream.Readable {
         if (!typ.isSlot(aSlot))
             throw 'ERROR : @aSlot is not a slot';
         aSlot.streamContent += chunk;
-        logger_1.logger.log('DBEUG', 'streamContent : ' + aSlot.streamContent);
+        logger.debug(`streamContent :${aSlot.streamContent}`);
     }
     /*
     * DO NOT MODIFY
@@ -255,12 +255,12 @@ class Task extends stream.Readable {
         if (aSlot.jsonContent.length >= 1)
             return;
         var jsonTab = this.findJson(aSlot.streamContent); // search for JSON
-        logger_1.logger.log('DEBUG', 'jsonTab = \n' + util.format(jsonTab));
+        logger.debug(`jsonTab = \n ${util.format(jsonTab)}`);
         if (jsonTab.length < 1)
             return; // if there is no JSON at all, bye bye
         aSlot.jsonContent = aSlot.jsonContent.concat(jsonTab); // take all the JSONs detected
         aSlot.streamContent = '';
-        logger_1.logger.log('DEBUG', 'jsonContent of ' + aSlot.symbol + ' = \n' + util.format(aSlot.jsonContent));
+        logger.debug(`jsonContent of ${aSlot.symbol} = \n${util.format(aSlot.jsonContent)}`);
     }
     /*
     * DO NOT MODIFY
@@ -278,12 +278,14 @@ class Task extends stream.Readable {
             jobOpt['namespace'] = jobOpt.inputs.uuid;
             delete jobOpt.inputs['uuid'];
         }
-        logger_1.logger.log('DEBUG', 'jobOpt = ' + JSON.stringify(jobOpt));
+        if (this.jobProfile)
+            jobOpt['jobProfile'] = this.jobProfile;
+        logger.debug(`jobOpt = ${JSON.stringify(jobOpt)}`);
         var j = self.jobManager.push(jobOpt); // (2)
         j.on('completed', (stdout, stderr, jobObject) => {
             if (stderr) {
                 stderr.on('data', (buf) => {
-                    logger_1.logger.log('ERROR', 'stderr content = \n' + buf.toString());
+                    logger.error(`stderr content = \n ${buf.toString()}`);
                     emitter.emit('stderrContent', buf);
                 });
             }
@@ -303,11 +305,11 @@ class Task extends stream.Readable {
             });
         });
         j.on('jobError', (stdout, stderr, j) => {
-            logger_1.logger.log('ERROR', 'job ' + j.id + ' : ' + stderr);
+            logger.error(`job ${j.id} stderr:${stderr}`);
             emitter.emit('error', stderr, j.id);
         });
         j.on('lostJob', (msg, j) => {
-            logger_1.logger.log('ERROR', 'job ' + j.id + ' : ' + msg);
+            logger.error(`job ${j.id} : ${msg}`);
             emitter.emit('lostJob', msg, j.id);
         });
         return emitter;
@@ -317,9 +319,9 @@ class Task extends stream.Readable {
     * Necessary to use task.pipe(anotherTask)
     */
     _read(size) {
-        logger_1.logger.log('DEBUG', '>>>>> read from ' + this.staticTag);
+        logger.debug(`>>>>> reading from ${this.staticTag}`);
         if (this.goReading) {
-            logger_1.logger.log('DEBUG', '>>>>> read: this.goReading is F from ' + this.staticTag);
+            logger.debug(`>>>>> read: this.goReading is F from ${this.staticTag}`);
             this.goReading = false;
         }
     }
@@ -398,7 +400,7 @@ class Task extends stream.Readable {
     */
     concatJson(jsonTab) {
         var newJson = {};
-        logger_1.logger.log('DEBUG', 'json array to concatenate = \n' + util.format(jsonTab));
+        logger.debug(`json array to concatenate = \n ${util.format(jsonTab)}`);
         for (let i = 0; i < jsonTab.length; i++) {
             for (let key in jsonTab[i]) {
                 if (newJson.hasOwnProperty(key))
@@ -406,7 +408,7 @@ class Task extends stream.Readable {
                 newJson[key] = jsonTab[i][key];
             }
         }
-        logger_1.logger.log('DEBUG', 'newJson = \n' + util.format(newJson));
+        logger.debug(`newJson = \n${util.format(newJson)}`);
         return newJson;
     }
     /*
@@ -437,7 +439,7 @@ class Task extends stream.Readable {
             return dict;
         }
         catch (err) {
-            logger_1.logger.log('ERROR', 'in parseJsonFile() :\n' + err);
+            logger.error(`in parseJsonFile() :\n ${err}`);
             return null;
         }
     }
@@ -450,7 +452,7 @@ class Task extends stream.Readable {
             return JSON.parse(data);
         }
         catch (err) {
-            logger_1.logger.log('ERROR', 'in parseJson() :\n' + err);
+            logger.error(`in parseJsonFile() :\n ${err}`);
             return null;
         }
     }
@@ -463,7 +465,7 @@ class Task extends stream.Readable {
             fs.writeFileSync(file, fileContent);
         }
         catch (err) {
-            logger_1.logger.log('ERROR', 'while writing the file ' + file + ' :\n' + err);
+            logger.error(`while writing the file ${file} :\n ${err}`);
         }
     }
     /*
@@ -475,7 +477,7 @@ class Task extends stream.Readable {
             fs.mkdirSync(dir);
         }
         catch (err) {
-            logger_1.logger.log('ERROR', 'while creating the directory ' + dir + ' :\n' + err);
+            logger.error(`while creating the directory ${dir}:\n${err}`);
         }
     }
     /*
@@ -486,8 +488,8 @@ class Task extends stream.Readable {
         let rs = fs.createReadStream(src);
         let ws = fs.createWriteStream(dest);
         rs.pipe(ws);
-        rs.on("error", (err) => { logger_1.logger.log('ERROR', 'in copyFile while reading the file ' + src + ' :\n' + err); });
-        ws.on("error", (err) => { logger_1.logger.log('ERROR', 'in copyFile while writing the file ' + dest + ' :\n' + err); });
+        rs.on("error", (err) => { logger.error(`in copyFile while reading the file ${src}:\n${err}`); });
+        ws.on("error", (err) => { logger.error(`in copyFile while writing the file ${dest}:\n${err}`); });
     }
     /*
     * DO NOT MODIFY

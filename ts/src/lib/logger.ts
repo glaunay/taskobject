@@ -1,49 +1,69 @@
-/*
-* This is the logger module using winston package. Redirecting some logs into the standard output (Console).
-* Setting up a log level need to be implemented before uses logs.
-* Use the #levelMin variable to set up the minimum log level that will be used in the entire program.
-* The default value of the log level is 'INFO'.
-* Require this module with: 
-*    import win = require('./lib/logger');
-*
-* Using examples:
-* - win.logger.log('CRITICAL', <text>)      - Higher level of logger, critical error
-* - win.logger.log('ERROR', <text>)         - Second level of logger, error
-* - win.logger.log('WARNING', <text>)       - Third level of logger, warning message
-* - win.logger.log('SUCCESS', <text>)       - 4th level of logger, success message
-* - win.logger.log('INFO', <text>)          - 5th level of logger, info message
-* - win.logger.log('DEBUG', <text>)         - Lower level of logger, debug mode
-*/
+import winston = require('winston');
 
-import win = require('winston');
+const config = {
+    levels: {
+      error: 0,
+      debug: 1,
+      warn: 2,
+      data: 3,
+      info: 4,
+      verbose: 5,
+      silly: 6,
+      custom: 7
+    },
+    colors: {
+      error: 'red',
+      debug: 'blue',
+      warn: 'yellow',
+      data: 'grey',
+      info: 'green',
+      verbose: 'cyan',
+      silly: 'magenta',
+      custom: 'yellow'
+    }
+  };
 
-var defaultLevel = 'INFO';
+winston.addColors(config.colors);
 
-export var loggerLevels = {
-    'CRITICAL': 0,
-    'ERROR': 1,
-    'WARNING': 2,
-    'SUCCESS': 3,
-    'INFO': 4,
-    'DEBUG': 5
-}
-var colors = {
-    'CRITICAL': 'red',
-    'ERROR': 'magenta',
-    'WARNING': 'yellow',
-    'SUCCESS': 'green',
-    'INFO': 'cyan',
-    'DEBUG': 'blue'
+function createFileTransport(path:string="./myNodeApp.log"):winston.transports.FileTransportInstance {
+
+    let files = new winston.transports.File({ filename: path,
+        format: winston.format.combine(
+        winston.format.simple()
+        ) });
+    return files;
 }
 
-export var logger = new (win.Logger)({
-    levels: loggerLevels,
-    colors: colors,
-    level: defaultLevel,
-    transports: [
-        new (win.transports.Console)({
-            colorize: true
-        })
-    ]
+let consoleT = new winston.transports.Console(
+  { 
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.simple()
+    )
 });
+winston.add(consoleT);
 
+//let fileDefaultTransport:winston.transports.FileTransportInstance = createFileTransport();
+//winston.add(fileDefaultTransport);
+
+let logLevel:string = 'info';
+
+function isLogLvl(value:string):boolean {
+    return config.levels.hasOwnProperty(value)
+}
+export function setLogLevel(value:string):void {
+    
+    if(!isLogLvl(value))
+        throw `Unrecognized logLvel "${value}"`;
+    logLevel = value;
+    winston.level = logLevel;
+}
+
+export function setLogFile(logFilePath:string):void {
+    //winston.remove(fileDefaultTransport);
+    let fileCustomTransport:winston.transports.FileTransportInstance = createFileTransport(logFilePath);
+    winston.add(fileCustomTransport);
+    //winston.level = logLevel;
+}
+
+export {winston as logger};

@@ -57,6 +57,6 @@ func.JMsetup()
     else func.dualTest(inputFile, inputFile2, management); // if inputFile2 -> dual test
 })
 .on('exhausted', () => {
-    logger.log('SUCCESS', "All jobs processed");
+    logger.info("All jobs processed");
 });
 
