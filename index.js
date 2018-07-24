@@ -196,7 +196,7 @@ class Task extends stream.Readable {
         self.feed_streamContent(chunk, aSlot);
         let run = undefined;
         for (let slt of slotArray) {
-            logger.debug(`slotArray[i] :\n${util.format(slt)}`);
+            logger.silly(`slotArray[i] :\n${util.format(slt)}`);
             self.feed_jsonContent(slt);
             // if no JSON has been detected at all :
             if (slt.jsonContent.length < 1)

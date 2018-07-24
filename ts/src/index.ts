@@ -222,7 +222,7 @@ export abstract class Task extends stream.Readable {
 		let run: boolean = undefined;
 
 		for (let slt of slotArray) { // for each slot
-			logger.debug(`slotArray[i] :\n${util.format(slt)}`);
+			logger.silly(`slotArray[i] :\n${util.format(slt)}`);
 			self.feed_jsonContent(slt);
 
 			// if no JSON has been detected at all :
